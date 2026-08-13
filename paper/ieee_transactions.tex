@@ -1,0 +1,1089 @@
+% =====================================================================
+%  The Spectral--Topological Decoupling Theorem in Self-Supervised
+%  Physical World Models
+%
+%  IEEE Transactions format (IEEEtran, journal mode).
+%  Generated from the canonical source paper.tex by make_ieee.py;
+%  edit paper.tex, not this file, and rerun `python make_ieee.py`.
+% =====================================================================
+\documentclass[journal]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{microtype}
+
+\newcommand{\FILL}[1]{\textcolor{red}{[#1]}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\tr}{\operatorname{tr}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\grad}{\nabla}
+\newcommand{\sym}{\operatorname{sym}}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+
+\title{The Spectral--Topological Decoupling Theorem in
+Self-Supervised Physical World Models}
+\author{\IEEEauthorblockN{Sehaj Randhir Singh}
+\IEEEauthorblockA{Independent researcher; partial affiliation with
+NYU Tandon School of Engineering, New York University,
+Brooklyn, NY, USA. Corresponding author: \FILL{email}}}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\begin{abstract}
+Joint-embedding predictive architectures (JEPAs) are increasingly given
+Hamiltonian or thermodynamic structure to enforce physically faithful
+latent dynamics. We show this hope fails at the level of the
+optimization. On Lorenz-63 and the 4-D hyperchaotic Lorenz flow,
+diffeomorphically lifted into 64-dimensional latent spaces, five
+structurally distinct latent predictors are trained and audited under a
+chaos-aware protocol. Every constraint class fails on a property disjoint from its target: the
+unconstrained predictor explodes ($\lambda_1=+28.2$); the rigid
+Hamiltonian freezes and yet posts the best overlap score; naive
+metriplectic dissipation pins $\tr(R)/n$ to zero; a divergence gate pins
+the spectral sum to within $1\%$ while $\lambda_1$ runs $2.5\times$ high;
+and differentiable QR alignment shapes only a finite-horizon proxy
+($-0.18$), not the asymptotic exponent ($+2.85$). A second system
+inverts the decoupling and destroys the second positive exponent a
+$\lambda_1$-only objective cannot name. At 2000 steps every alive arm's
+exponent climbs to $\approx{+}8$--$+20$; we state the decoupling as a
+theorem with a mandatory evaluation standard.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Lyapunov spectra, joint-embedding predictive architectures, metriplectic
+systems, world models, self-supervised learning, structure-preserving
+networks, no-go result.
+\end{IEEEkeywords}
+
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+A growing line of work trains world models whose latent dynamics are
+restricted to physical form --- Hamiltonian \cite{greydanus2019hamiltonian,
+cranmer2020lagrangian}, port-Hamiltonian \cite{van2020port}, or
+metriplectic/GENERIC \cite{morrison1986metriplectic,grmela1997dynamics,
+ottinger1997dynamics} structure --- on the premise that an inductive bias
+that provably conserves energy or increases entropy should yield stable,
+physically faithful rollouts. The same promise underpins learned world
+models \cite{ha2018world,hafner2020mastering,bruce2024genie}: within
+joint-embedding predictive architectures (JEPAs)
+\cite{lecun2022pathway,assran2023self,bardes2024revisiting,garrido2024learning},
+the same idea is applied to the latent predictor: constrain the operator
+$\dot z = f_\theta(z)$ to a structure that a physicist recognizes, and
+hope the representation space inherits the physics.
+
+This Letter reports a systematic failure of that premise, obtained not by
+increasing capacity or data but by isolating the \emph{structural} effects
+of each constraint class on a single, fixed, fully reproducible benchmark.
+Our object of study is a generalized metriplectic system
+\begin{equation}
+\label{eq:metriplectic}
+\dot z \;=\; J(z)\,\grad H(z) \;-\; R(z)\,\grad S(z),
+\end{equation}
+with $J^\top=-J$ (reversible/Poisson part), $R=R^\top\succeq 0$
+(dissipation), and scalar potentials $H$ (energy) and $S$ (dissipation
+potential). We train five latent predictors --- unconstrained MLP,
+rigid Hamiltonian, naive metriplectic, fixed (divergence-free-$J$)
+metriplectic with an invariant dissipation gate, and spectrally aligned
+metriplectic with a differentiable QR Lyapunov tracker --- to predict the
+nonlinearly lifted Lorenz-63 flow in a 64-dimensional JEPA latent space,
+and we evaluate them under a protocol designed for chaotic targets:
+boundedness of the autoregressive rollout, the leading Lyapunov exponent,
+the phase-space contraction rate, attractor overlap, and dissipation
+engagement. To separate properties of the constraint hierarchy from
+properties of any single dataset, the identical protocol is run on a
+\emph{second}, topologically distinct system: the 4-D hyperchaotic
+Lorenz flow \cite{qi2008hyperchaos}, which shares the same
+volume-contraction rate as Lorenz-63 but carries two positive Lyapunov
+exponents --- so that a $\lambda_1$-only spectral objective is blind to
+the second unstable direction by construction.
+
+Each arm fails, and each fails on a property disjoint from the one its
+constraint nominally controls. We argue that these five failures are not
+engineering deficiencies but the constructive instances of a decoupling
+structure: aggregate thermodynamic identities constrain spectral
+\emph{sums}; finite-horizon spectral statistics constrain windowed
+\emph{tangent maps}; and set-level distributional losses constrain
+\emph{pushforward measures}. None of these levels controls the others,
+and no conjunction of them certifies the conjunction of properties a
+physical world model must have: {bounded, dissipative, non-degenerate,
+dynamically faithful}. We state this as a theorem whose lemmas are
+elementary (each is a one-line linear-algebra or ergodic-theory fact) and
+whose force is empirical: the failure atlas exhibits every class failing
+simultaneously on two benchmark systems, including the most constrained
+arm on both.
+
+\paragraph{Related work.}
+Spectral objectives have been studied extensively in self-supervised
+learning as anti-collapse devices --- spectral contrastive learning
+\cite{haochen2021spectral}, alignment--uniformity analyses
+\cite{wang2020understanding}, whitening objectives
+\cite{ermolov2021whitening}, Barlow Twins \cite{zbontar2021barlow}, VICReg
+\cite{bardes2022vicreg}, feature-collapse studies of ViTs
+\cite{caron2021emerging}, rank-based quality metrics
+\cite{garrido2023rankme}, and dimensional-collapse analyses
+\cite{jing2022dimensional} --- but these control the \emph{representation}
+covariance, not the \emph{dynamics} operator; collapse prevention is a
+different certification from physical fidelity, and our arm C shows the
+two to be compatible (a full-rank, frozen, dynamically dead latent
+field). On the dynamics side, structure-preserving networks --- neural
+ODEs \cite{chen2018neural}, SymODEN \cite{zhong2020symoden}, dissipative
+SymODEN \cite{zhong2021dissipative}, Hamiltonian and Lagrangian networks
+\cite{greydanus2019hamiltonian,cranmer2020lagrangian,toth2020hamiltonian,lutter2019deep},
+dissipative Hamiltonian networks \cite{sosanya2022dissipative},
+metriplectic networks
+\cite{hernandez2021metriplectic}, GENERIC-formatted networks
+\cite{zhang2021generic}, port-Hamiltonian learning
+\cite{van2020port}, and Lyapunov-stable neural ODEs
+\cite{kolter2019lyapunov} --- typically verify their structure on the
+\emph{training-time} loss or on short rollouts; the spectral fine
+structure of the learned field is rarely audited. The relevant audit
+tools exist: Benettin\textendash{}QR spectra have long been used to
+characterize chaotic recurrent networks \cite{engelken2020lyapunov,vogt2022lyapunov},
+and finite-time exponents are standard diagnostics in dynamical systems
+\cite{haller2001distinguished}. What is missing is the negative
+statement we supply: that \emph{constraining} the latent field through
+any of these aggregate or windowed statistics does not \emph{certify}
+the spectrum the field actually realizes.
+
+The paper is deliberately deflationary, in deliberate contrast to the
+law-discovery program \cite{brunton2016discovering,iten2020ai,karniadakis2021physics}:
+we do not claim to recover thermodynamics in latent space, nor that any
+architecture can. We claim the opposite: that constraint-based
+certification of latent physical dynamics is, as currently practiced,
+unsound, and we specify the evaluation standard that would make it sound.
+
+% =====================================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{Benchmark construction}
+\label{sec:bench}
+
+We use the Lorenz-63 system \cite{lorenz1963deterministic},
+$(\sigma,\rho,\beta)=(10,28,8/3)$, whose reference invariants are the
+leading Lyapunov exponent $\lambda_1^{\rm ref}\approx 0.9056$ per time
+unit (empirically $0.8840$ on our integrator, recovered by the same
+Benettin machinery used for evaluation) and the phase-space divergence
+$\grad\!\cdot F_L=-(\sigma+1+\beta)=-13.667$, which equals the sum of the
+Lyapunov spectrum; the non-leading sum is $\kappa^{\rm ref}=\sum_{i\ge2}
+\lambda_i^{\rm ref}=\grad\!\cdot F-\lambda_1^{\rm ref}=-14.55$ under the
+runtime convention ($\lambda_2^{\rm ref}=0$, $\lambda_3^{\rm ref}
+\approx-14.57$; the literature-spectrum sum is $-14.57$, a $0.1\%$
+difference). A fixed nonlinear lift $\phi$ and an element-wise
+nonlinear warp $W$ embed the attractor diffeomorphically into $\R^{64}$;
+because the composite is a diffeomorphism, the latent reference spectrum
+is that of Lorenz (plus 61 neutral directions), so a faithful latent
+model must reproduce $\lambda_1\approx0.9$ and a contracting flow. A JEPA
+encoder $g_\xi$ (MLP backbone, 256 hidden units, SIGReg
+\cite{bardes2024sigreg} anti-collapse regularizer) maps observations to
+$z\in\R^{64}$; the dynamics operator $f_\theta$ is trained with a latent
+predictive (alignment) loss, a motion-matching penalty, and --- for the
+physics arms --- the appropriate structure loss (Methods). Training is
+fully deterministic per step (fixed seed, per-step trajectory draws);
+every number below is mean$\pm$std over three seeds.
+
+\subsection{The failure atlas}
+\label{sec:atlas}
+
+Table~\ref{tab:atlas} reports, per arm, the quantities that define the
+failure: boundedness of the 200-step evaluation rollout ($\max\|z\|$,
+with the fraction of seeds whose rollout left the encoder's training
+support), the leading Lyapunov exponent $\lambda_1$ of the learned field,
+the non-leading spectral sum (contraction) $\kappa=\sum_{i\ge2}\lambda_i$,
+the dissipation engagement $\tr(R)/n$, the field-activity ratio
+$m=\langle\|f_\theta\|\rangle/\langle\|f_{\rm ref}\|\rangle$ (a
+flatlining detector), the Chamfer attractor-overlap score, and --- for
+the spectral arms --- the training-time finite-horizon proxy
+$\hat\lambda_1$. All quantities are defined in Methods.
+
+\begin{table*}[t]
+\centering
+\caption{\textbf{The five-arm failure atlas.} $\lambda_1$ is the leading
+Lyapunov exponent of the learned latent field (reference $+0.884$);
+$\kappa=\sum_{i\ge2}\lambda_i=\tr-\lambda_1$ is the non-leading spectral
+sum (reference $-14.55$, i.e.\ $\grad\!\cdot F-\lambda_1^{\rm ref}$ under
+the runtime convention); $\tr(R)/n$ is the mean dissipation-matrix trace
+normalized by the latent dimension (metriplectic arms only); $m$ is the
+field-activity ratio (flatlining detector, reference $1$); Chamfer is the
+symmetric mean nearest-neighbor distance between the predicted and
+encoded attractor clouds in latent space (lower is better, reference
+$0$); $\max\|z\|$ is the maximum rollout norm over the 200-step
+evaluation, with the fraction of seeds whose rollout left the training
+support ($\|z\|\gtrsim10^2$ vs.\ in-support $\|z\|\approx10$);
+$\hat\lambda_1$ is the training-time finite-horizon QR proxy.
+Mean\,$\pm$\,std over three seeds. ${}^\dagger$Rollout left the training
+support ($\|z\|\gtrsim10^2$ vs.\ in-support $\|z\|\approx10$): in all three seeds for B and F, in two of three for E. ${}^\ddagger$Not
+reportable: the free MLP's Jacobian carries no volume law and its
+evaluation rollout escapes (see text). ${}^\S$Single seed: the
+long-horizon arm is reported on the one completed training run; a second
+run stalled without completing a step (no progress in 45 min on
+identical code and hardware --- a QR-backpropagation pathology, see
+Methods). The value in parentheses is the top-8 QR readout of
+$\lambda_1$ at encoded points.}
+\label{tab:atlas}
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccccccc}
+\toprule
+Model & $\max\|z\|$ & $\lambda_1$ & $\kappa$ & $\tr(R)/n$ & $m$ & Chamfer & $\hat\lambda_1$ \\
+\midrule
+B & $1.8{\times}10^6{}^{\dagger}$ & $+28.2\pm1.3$ & ${}^{\ddagger}$ & --- & $1821\pm1881$ & $3.4{\times}10^3$ & --- \\
+C & $10.1\pm0.3$ & $+0.011\pm0.002$ & $+0.01\pm0.00$ & --- & $0.005\pm0.001$ & $3.85\pm0.05$ & --- \\
+D & $35.5\pm24.5$ & $+1.50\pm0.86$ & $-1.4\pm1.2$ & $0.0000\pm0.0000$ & $0.88\pm0.13$ & $8.7\pm3.3$ & --- \\
+E & $175\pm135{}^{\dagger}$ & $+2.22\pm1.80$ & $-16.0\pm1.9$ & $3.77\pm2.15$ & $1.72\pm0.98$ & $23.0\pm4.8$ & --- \\
+F & $288\pm288{}^{\dagger}$ & $+2.85\pm1.89$ & $-16.1\pm2.0$ & $4.68\pm3.13$ & $2.17\pm1.46$ & $25.8\pm6.6$ & $-0.183\pm0.001$ \\
+F-long & $54.2{}^{\S}$ & $+0.18$ ($+0.007$)& $-13.8$ & $1.58$ & $0.63$ & $15.2$ & $-0.146$ \\
+\midrule
+reference & --- & $+0.884$ & $-14.55$ & --- & $1$ & $0$ & --- \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig1_atlas.png}
+\caption{\textbf{The failure atlas.} Mean$\pm$std over three seeds per arm:
+(a) leading Lyapunov exponent $\lambda_1$ of the learned field (dashed:
+reference $+0.884$) --- only the frozen arm C is near it, for the wrong
+reason; (b) non-leading spectral sum $\kappa=\tr-\lambda_1$ (dashed:
+reference $-14.55$) --- E and F pin the sum while $\lambda_1$ runs free;
+(c) dissipation engagement $\tr(R)/n$ --- exactly zero for D; (d) field-
+activity ratio $m$ (dashed: reference 1, log scale) --- C flatlines;
+(e) Chamfer attractor overlap (log scale) --- C posts the best score
+while frozen (overlap trap); (f) training proxy $\hat\lambda_1$ (red
+\textasciicircum, spectral arms only) vs evaluation $\lambda_1$ (black
+$\bullet$) --- for F the proxy is negative while the evaluation exponent
+is positive, in every seed.}
+\label{fig:atlas}
+\end{figure*}
+
+\paragraph{Model B --- unconstrained MLP: spectral blow-up.}
+The free residual predictor is not volume-constrained in any way; its
+Jacobian acquires a large positive leading exponent, $\lambda_1=+28.2\pm
+1.3$ --- $32\times$ the reference rate --- and the rollout leaves the
+encoder domain in all three seeds ($\max\|z\|$ of order $10^5$--$10^6$),
+with Chamfer degrading to $3.4\times10^3$ and a field $1.8\times10^3$
+times too active ($m=1821\pm1881$). No thermodynamic statement can be made
+--- and none is enforced --- which is precisely the control condition the
+physics arms are meant to beat.
+
+\paragraph{Model C --- rigid Hamiltonian: trivial representation freeze
+and the overlap trap.}
+The Hamiltonian arm, structurally volume-preserving
+($\grad\!\cdot(J\grad H)=\tr(J\,\grad^2H)=0$ for constant skew $J$),
+cannot contract phase-space volume and therefore cannot represent a
+dissipative attractor. The optimizer's response is not a wrong
+Hamiltonian but \emph{no motion at all}: the learned field gradients
+flatline ($m=0.005\pm0.001$, a field $\approx200\times$ weaker than the
+reference), all exponents collapse to $\approx0$
+($\lambda_1=+0.011\pm0.002$; the trace reads $+0.02$, exactly the
+volume-preserving value), and the predictor posts the \emph{best} Chamfer
+score of all arms ($3.85\pm0.05$) by mapping every latent state into the
+same small cluster of the attractor cloud. The set-level Chamfer distance
+rewards statistical overlap of point clouds and is blind to whether the
+points are produced by dynamics or by a constant map
+(Proposition~\ref{prop:overlap}). A frozen predictor is thus ``optimal''
+under the metric most commonly used to claim attractor recovery.
+
+\paragraph{Model D --- naive metriplectic: the $R=LL^\top$ dead saddle.}
+With $R=LL^\top$ and $L$ zero-initialized, the loss is stationary in $L$
+at $L=0$ ($\partial R/\partial L=0$ there), a dead saddle from which no
+first-order optimizer escapes. The model ``survives'' --- $\lambda_1=
++1.50\pm0.86$ is bounded and positive, and the trace reads $+0.1\pm2.1$
+(an essentially volume-preserving loop) --- by keeping dissipation
+exactly off: $\tr(R)/n=0.0000$ to all printed digits in every seed.
+Positive semidefiniteness of $R$ is guaranteed by construction;
+\emph{nonzero} dissipation is not. The apparent closeness to the
+reference exponent is itself a window artifact: at 2000 steps the
+shadow exponent reads $+4.5$--$+19.7$ on the hyperchaotic system
+(Methods), so the dead-saddle field is the most expansive in the
+atlas, not the nearest to the reference.
+
+\paragraph{Model E --- fixed metriplectic with divergence gate: spectral
+decoupling.}
+Closing the two loopholes of D --- fixing $J$ to a constant
+divergence-free operator and initializing $L\neq0$ --- makes the
+invariant dissipation gate bite: $\tr(R)/n=3.77\pm2.15$ (engaged) and the
+trace--divergence proxy pins the spectral sum to $-13.80\pm0.17$,
+within $1\%$ of the reference $-13.667$; the non-leading sum
+$\kappa=-16.0\pm1.9$. But the gate constrains only the \emph{sum} of the
+spectrum. The leading exponent, driven by the Rayleigh quotient of
+dissipation along the least-stable direction, is uncontrolled:
+$\lambda_1=+2.22\pm1.80$ --- $2.5\times$ the reference and \emph{larger}
+than the naive arm's $1.50$ --- and the global metrics degrade with it:
+$\max\|z\|=175\pm135$ (two of three seeds leave the support) and Chamfer
+$23.0\pm4.8$, worse than the dead-saddle arm D despite dissipation being
+on exactly as designed. Pinning a thermodynamic aggregate leaves the
+microscopic spectrum free (Proposition~\ref{prop:trace}).
+
+\paragraph{Model F --- spectrally aligned metriplectic, short horizon:
+the finite-time-horizon trap.}
+Arm F adds a differentiable QR Lyapunov tracker (Methods) with a
+six-step training window ($0.06$ time units $\approx0.05$ Lyapunov
+times). At the optimum the finite-time proxy is $\hat\lambda_1=
+-0.183\pm0.001$ --- a contracting estimate, negative in every seed ---
+while the 200-step evaluation exponent is $\lambda_1=+2.85\pm1.89$:
+the windowed tangent map that training sees says ``stable'', the
+asymptotic tangent map says ``chaotic at $3.2\times$ the reference
+rate''. The QR spectral term is not even the dominant shaper of the
+proxy: its loss \emph{rises} from $0.78$ to $1.13$ while the total
+loss falls by $15\times$, because alignment and motion dominate --- yet
+the sign flip is robust across seeds, and evaluating with the training
+window itself would certify F as stable (Proposition~\ref{prop:finite}).
+The divergence gate still holds ($\tr-\lambda_1=-16.1\pm2.0$; the
+trace proxy is $-13.24\pm0.19$, within $4\%$ of reference), so the arm
+satisfies the macroscopic identity while its leading exponent is
+$3.2\times$ the reference and its rollout drifts farthest of the alive
+arms ($\max\|z\|=288\pm288$, all three seeds outside the support;
+Chamfer $25.8\pm6.6$). A finite-horizon Lyapunov statistic is a
+functional of the windowed tangent map; it is not a bound on the
+Oseledets spectrum.
+
+\paragraph{Model F-long --- long-horizon spectral alignment: the trap
+is not a short-window artifact.}
+Lengthening the differentiable QR window tenfold (60 steps,
+$0.6$ time units $\approx0.5$ Lyapunov times, truncated BPTT with the
+frame detached every 10 steps) does not close the decoupling; it
+inverts it. The 60-step proxy converges to $\hat\lambda_1=-0.146$
+--- still far from the $+0.884$ target, with the spectral loss
+\emph{rising} from $0.78$ to $1.04$ while the total loss falls
+ninefold --- and the asymptotic exponent collapses to
+$\lambda_1=+0.18$ (the evaluation QR readout gives $+0.007$): the
+leading axis is overdamped into a near-degenerate, effectively
+non-chaotic flow. Every macroscopic certificate now fires: the trace
+gate is satisfied to $0.4\%$ ($-13.61$ vs.\ $-13.667$), dissipation
+is engaged ($\tr(R)/n=1.58$), the rollout stays bounded
+($\max\|z\|=54$), and the Chamfer score ($15.2$) beats both E and
+F. The model is well-behaved and spectacularly wrong: it has learned
+a contracting, non-chaotic flow for a chaotic world. Backpropagation
+through the QR chain is the only mechanism that keeps the spectral
+term from being fully ignored --- its pre-clip gradient norm reaches
+$11.3$ mid-training, engaging the norm-1 clip at five of the seven
+logged checkpoints (the non-spectral arms carry no such excursion);
+the probe on the initialization returns
+finite norms ($8.0{\times}10^{-3}$--$8.9{\times}10^{-3}$ across
+full-unroll/TBPTT-10/per-step), showing the instability is a
+trained-state phenomenon, not an initialization one; and a second
+long-horizon run stalled without completing a single training step,
+a further manifestation of the same fragility. The finite-time
+horizon trap is thus quantitative: lengthening the window moves the
+proxy, but no window-length functional of the training tangent map
+--- and no combination with the trace gate --- controls the
+asymptotic Oseledets exponent or the dynamical content of the flow.
+
+\subsection{Generality: the same atlas on a second system}
+\label{sec:lz4}
+
+A single benchmark cannot separate properties of the constraint
+hierarchy from properties of one dataset. We therefore repeat the
+\emph{identical} protocol --- same five predictors, same optimizer
+schedule, same evaluation --- on a second, topologically distinct
+reference flow: the 4-D hyperchaotic Lorenz system \cite{qi2008hyperchaos}
+\begin{equation}
+\label{eq:lz4}
+\begin{aligned}
+  \dot x&=a(y-x), & \dot y&=bx-y-xz+w,\\
+  \dot z&=xy-cz, & \dot w&=-dx,
+\end{aligned}
+\end{equation}
+with $(a,b,c)=(10,28,8/3)$ and $d=2.0$. Its divergence is
+$-(a+1+c)=-13.667$ --- \emph{identical} to Lorenz-63 --- but its
+Oseledets spectrum carries two positive exponents: consistent-tangent
+Benettin QR at $dt=0.002$ over 60 time units yields
+$(\lambda_1,\lambda_2,\lambda_3,\lambda_4)=(+0.769,+0.098,\approx0,-14.59)$,
+and the runtime shadow measurement at the evaluation $dt=0.01$ gives
+$\lambda_1=+0.737$. The second positive exponent is the point: a
+$\lambda_1$-only spectral objective cannot even \emph{name} the second
+unstable direction, let alone control it. Table~\ref{tab:lz4} reports the
+same columns as Table~\ref{tab:atlas} plus the QR-readout second
+exponent $\lambda_2$.
+
+\begin{table*}[t]
+\centering
+\caption{\textbf{The failure atlas on the 4-D hyperchaotic Lorenz
+system.} Same protocol and columns as Table~\ref{tab:atlas}, plus
+$\lambda_2$ (the QR-readout second exponent; reference $+0.098$).
+Reference leading exponent: runtime-measured $+0.737$; non-leading sum
+$\kappa^{\rm ref}=\tr-\lambda_1=-14.40$ (same convention as
+Table~\ref{tab:atlas}). Symbols as in Table~\ref{tab:atlas}:
+${}^\dagger$ the only escaping arm on this system is B;
+${}^\ddagger$ not reportable on an escaped rollout. Mean$\pm$std over
+three seeds.}
+\label{tab:lz4}
+\begingroup\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{lcccccccc}
+\toprule
+Model & $\max\|z\|$ & $\lambda_1$ & $\lambda_2$ & $\kappa$ & $\tr(R)/n$ & $m$ & Chamfer & $\hat\lambda_1$ \\
+\midrule
+B & $3.9{\times}10^6{}^{\dagger}$ & $+29.2\pm3.0$ & ${}^{\ddagger}$ & ${}^{\ddagger}$ & --- & $4699\pm4718$ & $8.4{\times}10^3$ & --- \\
+C & $9.9\pm0.2$ & $+0.011\pm0.006$ & $+0.00\pm0.00$ & $+0.01\pm0.01$ & --- & $0.004\pm0.000$ & $3.09\pm0.12$ & --- \\
+D & $57.4\pm22.5$ & $+2.22\pm0.93$ & $+0.27\pm0.01$ & $-1.7\pm2.2$ & $0.0000\pm0.0000$ & $0.74\pm0.07$ & $14.7\pm2.4$ & --- \\
+E & $66.7\pm15.9$ & $+0.09\pm0.38$ & $-0.08\pm0.02$ & $-13.85\pm0.56$ & $1.77\pm0.34$ & $0.93\pm0.16$ & $15.2\pm0.5$ & --- \\
+F & $62.2\pm9.0$ & $-0.01\pm0.20$ & $-0.08\pm0.01$ & $-13.31\pm0.31$ & $1.64\pm0.05$ & $0.88\pm0.08$ & $14.6\pm0.4$ & $-0.18\pm0.01$ \\
+\midrule
+reference & --- & $+0.737$ & $+0.098$ & $-14.40$ & --- & $1$ & $0$ & --- \\
+\bottomrule
+\end{tabular}
+\endgroup
+\end{table*}
+
+The atlas reproduces, system to system, and its headline numbers are
+strikingly close. The unconstrained MLP blows up with the same
+signature ($\lambda_1=+29.2\pm3.0$, $\max\|z\|$ of order $10^6$, the
+only escaping arm on this system); the rigid Hamiltonian freezes into
+the same trivial solution ($m=0.004$, $\lambda_1\approx0$) and again
+posts the best Chamfer ($3.09$); the naive metriplectic arm survives
+by pinning $\tr(R)/n$ to exactly zero; and the divergence-gated and
+spectral arms again satisfy the macroscopic identity (contraction
+$-13.8$ and $-13.3$ vs.\ the reference $-13.667$, within $1$--$3\%$)
+while their leading exponents read $+0.09$ and $-0.01$ --- an order of
+magnitude \emph{below} the reference $+0.737$, where on Lorenz the same
+gate let them run $2.5$--$3.2\times$ \emph{above}. The decoupling
+direction inverts with the system: the spectral sum is pinned, and the
+leading exponent wanders where it will --- high on Lorenz, dead on
+LZ4 --- always off the reference.
+
+The spectrally aligned arm's proxy is again wrong, and the
+convergence check shows the two systems are one phenomenon. On
+Lorenz-63, $\hat\lambda_1=-0.183$ while the asymptotic exponent is
+$+2.85$ (a sign flip). On LZ4 the proxy $\hat\lambda_1=-0.18$ and the
+200-step evaluation exponent $-0.01$ \emph{agree in sign} --- the
+standard window reads a contracting, over-damped flow, far from the
+$+0.737$ target --- but this is the same finite-window artifact: at
+2000 steps the exponent of both gated arms climbs to $+7.8$--$+9.7$
+and the rollout leaves the encoder domain (steps 304--402, Methods).
+The spectral objective drives the leading exponent toward zero on
+every window it can see, and the field obliges within that window; the
+asymptotic instability is merely slower to manifest than on Lorenz-63.
+The distinctive new fact is $\lambda_2$. The reference flow has a
+second positive exponent $+0.098$; the QR readout of every constrained
+arm is negative or zero at the evaluation window ($-0.08\pm0.02$ for
+E, $-0.08\pm0.01$ for F, $0.00$ for C, and only $+0.27$ for the dead-
+saddle arm D, whose exponents are accidental). A $\lambda_1$-only
+spectral objective cannot even \emph{name} the second unstable
+direction, let alone preserve it: the arms that fail on $\lambda_1$
+also destroy $\lambda_2$, and the one arm with an engaged constraint
+that might have acted on it (F) is the one whose objective is blind to
+it. The spectral decoupling and finite-time traps are therefore not
+Lorenz-63 artifacts: they follow from the constraint classes
+(Propositions~\ref{prop:trace}--\ref{prop:finite}) and fire on any
+flow in the class, with the error direction set by the system, not by
+the constraint.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig3_lz4.png}
+\caption{\textbf{The failure atlas on the 4-D hyperchaotic Lorenz
+system.} Same panels as Fig.~\ref{fig:atlas} (mean$\pm$std over three
+seeds; dashed: reference $\lambda_1=+0.737$). The hatched bars on the
+left panel are the QR-readout second exponent $\lambda_2$ (dotted:
+reference $+0.098$): the arms that fail on $\lambda_1$ also destroy
+the second unstable direction --- which the $\lambda_1$-only spectral
+target cannot even name. Note the decoupling \emph{direction} within
+the standard 200-step window: constraining the trace pins the sum
+($\kappa$ panel) while the leading exponent of the gated arms reads
+$\approx0$ --- the mirror image of the Lorenz-63 atlas, where the same
+constraints let $\lambda_1$ run $2.5$--$3.2\times$ too high. The
+convergence check (Methods) shows both readings are finite-window
+artifacts: at 2000 steps every alive arm's exponent climbs to
+$\approx+8$--$+20$ and the gated arms escape, so the atlas's verdicts
+are conservative.}
+\label{fig:lz4}
+\end{figure*}
+
+\subsection{The decoupling theorem}
+\label{sec:theorem}
+
+The five arms are the constructive content of a decoupling structure.
+Let $f_\theta$ be a learned latent field and $A=Df_\theta$ its Jacobian.
+
+\begin{proposition}[Aggregate gates pin only the mean; the dimension factor]
+\label{prop:trace}
+Let $\mathcal{R}_c=\{R\in\mathrm{Sym}(d):R\succeq0,\;\tr R=cd\}$ be the
+feasible set of a trace (equivalently divergence, hence spectral-sum)
+gate in $d$ latent dimensions. Then
+\begin{equation}
+\begin{split}
+  \sup_{R\in\mathcal{R}_c}\lambda_{\max}(R)&=cd,\\
+  \sup_{R\in\mathcal{R}_c}v^\top R\,v&=cd\quad\text{for every unit }v,
+\end{split}
+\end{equation}
+i.e.\ the gate pins the \emph{mean} eigenvalue $c$ but leaves the
+Rayleigh quotient along any prescribed direction --- in particular along
+the leading Oseledets direction $v_1$ --- free up to a factor $d$ above
+the mean. Moreover, over the set of spectra with fixed sum $c$ (the
+only thing a divergence gate constrains), the leading exponent is
+\emph{unbounded above}: for every $M$ there is an admissible spectrum
+with $\lambda_1>M$.
+\end{proposition}
+
+\begin{proof}
+For PSD $R$, $\lambda_{\max}(R)\le\tr R=cd$ and $v^\top Rv\le cd$, and
+both are attained by the rank-one matrix $cd\,uu^\top$ with $u=v$ (any
+unit vector). For the spectrum statement, fix $c<0$ and $M>0$: the
+tuple $(\lambda_1,\ldots,\lambda_d)=(M,0,\ldots,0,c-M)$ is admissible
+(sum $c$, weakly ordered for $M\ge c$), with $\lambda_1=M$ arbitrarily
+large; the negative tail $-M$ is absorbed by the most contracting
+direction. The algebraic bound is the only one a sum constraint
+provides; whether the optimizer \emph{realizes} the headroom is
+empirical (arms E, F do: $\lambda_1=+2.2\ldots+2.85$ with the gate
+satisfied). $\square$
+\end{proof}
+
+\begin{proposition}[Finite-time/asymptotic decoupling with rate]
+\label{prop:finite}
+Let $\Phi^t$ be a $C^{1+\alpha}$ flow with Oseledets top exponent
+$\lambda_1$ and finite-time exponent
+$\Lambda_T(x)=\frac{1}{T}\log\|D\Phi^T(x)\|$.
+\begin{enumerate}
+\item[(i)] \emph{Generic rate.} Under the standard fluctuation law for
+the top exponent (positive variance $\sigma^2$ of the pointwise growth
+rates),
+\begin{equation}
+  \Lambda_T(x)=\lambda_1+O\!\left(\sqrt{\tfrac{\log\log T}{T}}\right),
+\end{equation}
+so the finite-time error is $O(1)$ on sub-Lyapunov windows and remains
+of order $10\%$ even at five Lyapunov times in the generic case. A
+windowed functional of the tangent map cannot certify the asymptotic
+exponent with useful accuracy at training horizons ($T\approx0.06$
+Lyapunov times for the short arms).
+\item[(ii)] \emph{Non-certifiability.} For every finite $T>0$ there
+exist smooth flows with $\Lambda_T<0<\lambda_1$: a flow with an
+arbitrarily long initial contraction epoch (a slow passage past a
+stable region) followed by asymptotic expansion has negative
+finite-time exponent over $[0,T]$ and positive Oseledets exponent. The
+map $\theta\mapsto(\Lambda_T(\theta),\lambda_1(\theta))$ is therefore
+not a graph over the parameter space, for any $T$; the differentiable
+QR training signal $\Lambda_T(\theta)$ is not a certificate of
+$\lambda_1(\theta)$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(i) is the log-law for top Lyapunov exponents
+\cite{barreira2002lyapunov}: $T(\Lambda_T-\lambda_1)/\sqrt{2\sigma^2\log\log T}
+\xrightarrow{d}\mathcal{N}(0,1)$ in the generic case. For (ii), let
+$x_\varepsilon$ follow $\dot x=f(x)$ with a bounded region of
+contraction of length $T$ preceding a region of expansion (existence by
+smoothing a piecewise-linear flow); the finite-time exponent over
+$[0,T]$ is negative while the time-mean growth rate from any generic
+start is positive. $\square$
+\end{proof}
+
+\begin{proposition}[Set-metric/flow decoupling: the overlap trap]
+\label{prop:overlap}
+Chamfer-type distances are invariant under reordering of the point set.
+For any target cloud $P\subset B(\mu,r)$, the constant map $f\equiv c$
+with $c\in B(\mu,r)$ attains Chamfer distance $\le 2r$ while carrying
+zero dynamical information.
+\end{proposition}
+
+\begin{proof}
+Both nearest-neighbor terms collapse to radii about $c,\mu$. $\square$
+\end{proof}
+
+\begin{theorem}[Spectral--topological decoupling, no-go form]
+\label{thm:no-go}
+No constraint policy expressible as a combination of (i) aggregate
+thermodynamic identities (trace/divergence gates), (ii) finite-horizon
+spectral statistics (differentiable QR proxies), and (iii) set-level
+distributional losses (Chamfer/overlap) certifies the conjunction
+\{boundedness in the encoder domain, correct leading exponent,
+non-degenerate field, dynamical fidelity\} for metriplectic latent
+predictors of the form \eqref{eq:metriplectic}. The failure is
+structural (Propositions~\ref{prop:trace}--\ref{prop:overlap}) and is
+realized simultaneously by a five-arm atlas on \emph{two} benchmark
+systems --- Lorenz-63 and the 4-D hyperchaotic Lorenz --- with each
+constraint class failing on a property disjoint from the one it
+enforces, including the fully constrained arm F on both systems.
+\end{theorem}
+
+The theorem is a statement about certification, not about existence: it
+does not claim that no metriplectic latent model can match the
+reference flows, only that the constraint classes currently used to
+certify physical fidelity cannot, singly or jointly, guarantee the
+properties they are invoked for. The propositions are elementary; their
+content is that the three levels --- spectral sums, windowed tangent
+maps, pushforward measures --- are mutually independent, and the atlas
+exhibits all three traps firing on each of the two benchmark systems
+(Fig.~\ref{fig:schematic}).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.92\textwidth]{fig2_schematic.png}
+\caption{\textbf{Spectral--topological decoupling.} Each constraint class
+acts on one functional level --- (i) aggregate thermodynamic identities
+(trace/divergence gates, spectral sums), (ii) finite-horizon spectral
+statistics (differentiable QR, windowed tangent maps), (iii) set-level
+distributional losses (Chamfer, pushforward measures) --- and each level
+fails independently, producing three disjoint traps (arms E, F, C). No
+combination of (i)--(iii) certifies the conjunction of properties a
+physical world model must have (Theorem~\ref{thm:no-go}).}
+\label{fig:schematic}
+\end{figure*}
+
+% =====================================================================
+\section{Discussion: two traps and a mandatory evaluation standard}
+\label{sec:discussion}
+
+\subsection{The overlap trap}
+Set-level geometry is not dynamics. Chamfer and Hausdorff distances
+between the predicted and encoded attractor clouds reward statistical
+overlap; a predictor that has learned to output the attractor's centroid
+region scores well while being dynamically dead. The literature's
+practice of reporting attractor overlap without a mobility check is
+therefore unsound: the frozen arm C posts the best Chamfer in our atlas
+($3.85$) while carrying a field $\approx200\times$ weaker than the
+reference. The corrective is not a better set metric but a gating
+discipline: report overlap only conditioned on (i) a field-activity
+floor, (ii) a non-vanishing leading exponent, and (iii) an ordered
+(time-aligned) trajectory error --- or replace set metrics with
+motion-invariant statistics.
+
+\subsection{The finite-time-horizon trap}
+A differentiable QR Lyapunov tracker is a legitimate optimization target
+only if its horizon is matched to the physics it is meant to certify.
+Over sub-Lyapunov horizons, finite-time exponents are dominated by local
+stretch and rotation and are decoupled from the Oseledets flag; over a
+Lyapunov-time horizon they become trainable but still constrain nothing
+global. The trap is not a metric artifact: evaluating with the same
+short window would certify the unstable arm F as stable --- its training
+proxy is $-0.18$, the evaluation exponent $+2.85$, a sign reversal in
+every seed. Lengthening the window tenfold inverts rather than closes
+the trap (arm F-long): the proxy becomes consistent with the truth, but
+the truth is now wrong --- the leading axis is overdamped to
+$\lambda_1\approx0.2$ (QR readout $+0.007$), an effectively non-chaotic
+flow that nonetheless satisfies the trace gate to $0.4\%$ and stays
+bounded. Any spectral claim must therefore report the window-length
+sensitivity, the proxy--target gap, and a long-horizon evaluation
+spectrum.
+
+\subsection{The through-line: no arm ever achieves the reference}
+The atlas is stronger than the sum of its traps. \emph{No arm achieves
+the reference leading exponent while remaining dissipative,
+non-degenerate, and bounded --- on either system.} On Lorenz-63 the
+unconstrained arm overshoots by $32\times$ and escapes; the
+symplectic arm freezes; the naive
+metriplectic arm's $+1.50$ at the evaluation window is the nearest to
+$\lambda_1^{\rm ref}$, by keeping $R\equiv0$ --- yet its 2000-step
+exponent is $+4.5$--$+19.7$, the most expansive field in the atlas;
+the gated arm pins the sum and lets $\lambda_1$ run to $+2.2$; the
+short-window spectral arm sign-flips its own proxy ($-0.18$ vs.\
+$+2.85$); and the long-window spectral arm collapses the leading axis
+to $\approx0$ within the evaluation window. On the hyperchaotic
+system the same gate and the same spectral objective push the leading
+exponent to $\approx0$ at the evaluation window from the
+\emph{opposite} side --- again transiently: at 2000 steps both climb
+past $+7.8$ and escape. Every lever a practitioner reaches for ---
+more structure, a dissipation gate, a spectral objective, a longer
+spectral window --- either leaves the leading exponent free or
+destroys it, and the direction of the error is set by the system, not
+the constraint, while the set-level and aggregate certificates that
+are actually reported all fire successfully on at least one wrong arm.
+This is the constructive content of Theorem~\ref{thm:no-go}: the
+certificates and the property do not couple.
+
+\subsection{A mandatory evaluation standard for physical world models}
+\label{sec:standard}
+For any claim that a learned latent dynamics is physically faithful, we
+propose that the following be reported as a minimum:
+\begin{enumerate}
+\item the \emph{full} (or top-$k$, $k\ge 8$) Lyapunov spectrum over an
+evaluation rollout of at least five Lyapunov times, not a single exponent
+from a training-window estimate;
+\item the \emph{proxy--target gap}: the training-horizon finite-time
+exponent and the evaluation-horizon exponent, with the window-length
+sensitivity;
+\item \emph{domain invariance}: $\max\|z\|$ over the evaluation rollout
+and the fraction of time spent outside the training support (escape
+disqualifies regardless of losses);
+\item a \emph{mobility guard}: the field-activity ratio with a collapse
+floor (rejects overlap-trap freezes);
+\item \emph{ordered} trajectory metrics alongside any set-level score;
+\item a \emph{directional dissipation audit}: $\tr(R)/n$ and the Rayleigh
+quotient $v_1^\top R v_1$ along the leading Oseledets direction --- the
+spectral-decoupling trap is invisible to the trace alone;
+\item \emph{atlas accountability}: an explicit statement of which trap
+class the model is vulnerable to.
+\end{enumerate}
+
+\subsection{Limitations}
+The theorem's force is the constructive atlas plus three elementary
+lemmas; it does not rule out structure imposed \emph{inside} generative
+decoders or data-driven degeneracy-aware brackets, which lie outside the
+constraint hierarchy treated here. The residual violation of the GENERIC
+degeneracy conditions ($J\grad S=0$, $R\grad H=0$) by the learned
+potentials is itself a caveat on all metriplectic arms. The 61 transverse
+reference exponents are neutral by construction, not by measurement.
+All conclusions are for two dissipative chaotic flows of the same
+family (Lorenz-type polynomial vector fields with identical divergence),
+one encoder family (MLP), and one optimizer regime; the atlas is
+evidence, and the propositions are the theorem. A reference flow from a
+different dynamical class (e.g.\ a coupled-oscillator network with a
+conserved quantity) would strengthen --- or, if the traps failed to
+fire, weaken --- the claim, and is the immediate next experiment.
+
+% =====================================================================
+\section{Methods}
+\label{sec:methods}
+
+\subsection{Setting and reference dynamics}
+\label{sec:methods-setup}
+
+Let $M=\R^3$ carry the Lorenz-63 flow
+$\dot x=F_L(x)$, $F_L=(\sigma(y-x),\,x(\rho-z)-y,\,xy-\beta z)$ with
+$(\sigma,\rho,\beta)=(10,28,8/3)$. The reference invariants are the
+leading Lyapunov exponent $\lambda_1^{\rm ref}\approx0.9056$ per time
+unit and the constant divergence $\grad\!\cdot F_L=-(\sigma+1+\beta)=
+-13.667$, which equals the sum of the full spectrum (the remaining
+exponents are $\lambda_2=0$ and $\lambda_3\approx-14.57$). One Lyapunov
+time is $T_L=\lambda_1^{-1}\approx1.13$ time units.
+
+Observations are produced by a fixed nonlinear lift $\phi$ and an
+element-wise nonlinear warp $W$,
+\begin{equation}
+\begin{split}
+  \phi(x)_j &= m_{j0}\,\sin(\omega_j\,\tilde x_j)+m_{j1}\,\tanh(\tilde x_j^3)\\
+            &\quad +m_{j2}\,\tanh(e^{\tilde x_j}-1),\qquad \tilde x=(x-\mu)/s,
+\end{split}
+\end{equation}
+\begin{equation}
+  W(u)=u+0.2\sin(2u)\cos(u^2),
+\end{equation}
+with fixed random weights $(m_j,\omega_j)$ and normalization chosen so
+that each lifted feature lies in $[-1,1]$, on which $W$ has positive
+derivative and is therefore a diffeomorphism of the bounded domain. The
+composite $W\circ\phi$ embeds the attractor into $\R^{64}$; because the
+lift is a diffeomorphism on the invariant manifold, the reference
+spectrum of the latent flow is exactly that of Lorenz augmented by 61
+neutral directions (Lyapunov spectra are invariant under smooth
+conjugacies \cite{oseledets1968multiplicative,barreira2002lyapunov}). A
+faithful latent model must therefore reproduce $\lambda_1\approx0.9$,
+zero transverse exponents, and a volume-contracting flow with total
+contraction $-13.667$.
+
+For the second system, $M=\R^4$ carries the 4-D hyperchaotic Lorenz
+flow \eqref{eq:lz4} with $(a,b,c,d)=(10,28,8/3,2.0)$, whose divergence
+$-(a+1+c)=-13.667$ coincides with Lorenz-63 and whose Oseledets
+spectrum $\lambda\approx(+0.769,+0.098,0,-14.59)$ (consistent-tangent
+Benettin QR, $dt=0.002$, 60 time units, float64) carries two positive
+exponents. The identical lift $\phi$ and warp $W$ map the 4-D
+attractor into $\R^{64}$ (with fixed normalization and lift parameters
+seeded separately), so the latent reference spectrum is the 4-D
+spectrum augmented by 60 neutral directions. The F arm's spectral
+target is the runtime-measured $\lambda_1=+0.737$ at the evaluation
+$dt=0.01$, exactly as for Lorenz. Everything else --- encoder,
+losses, curriculum, evaluation horizon, seeds --- is bit-identical
+between the two systems; only the vector field, its normalization, and
+the reference invariants differ. This is the sense in which the two
+atlases test the constraint hierarchy rather than the dataset.
+
+\subsection{Encoder, training, and regularization}
+\label{sec:methods-encoder}
+
+The encoder $g_\xi$ is an MLP backbone (vector mode, input dimension 32,
+256 hidden units, GELU, LayerNorm) followed by a projector onto the
+$d=64$ latent space. Anti-collapse is handled by SIGReg
+\cite{bardes2024sigreg}: for $P=64$ random unit projections and $F=16$
+frequencies $t$, the empirical characteristic function of the projected
+batch is matched to the Gaussian characteristic function
+$\exp(-t^2/2)$, an Epps--Pulley-style test that penalizes collapse to a
+point or a subspace without any teacher or momentum encoder. The
+prediction target is the latent $g_{\xi^-}(x_{t+\tau})$ from a
+momentum-copied encoder; the dynamics operator is trained on the
+multi-step alignment loss
+\begin{equation}
+  \mathcal L_{\rm align}=\E\big\| f_\theta^{\circ k}(z_t) - z_{t+k}
+  \big\|^2, \qquad z_t=g_\xi(x_t),
+\end{equation}
+over a progressive-horizon curriculum $k\in\{1,3,6\}$ (30\%/60\% of the
+training schedule). A motion-matching penalty with a detached target
+magnitude prevents the trivial ``do-not-move'' solution that minimizes
+alignment by freezing. Training: AdamW ($\mathrm{lr}=3\times10^{-4}$),
+gradient clipping at norm 1, batch 128, 250 steps per seed, three seeds,
+with fully deterministic per-step trajectory draws (per-step data seed),
+so every reported number is bit-reproducible from (seed, schedule).
+
+\subsection{The metriplectic tensor layout}
+\label{sec:methods-metriplectic}
+
+Physics arms parameterize the latent field on the generalized
+metriplectic template \eqref{eq:metriplectic}: $J(z)=A(z)-A(z)^\top$
+skew (reversible/Poisson part), $R(z)=L(z)L(z)^\top/n$ positive
+semidefinite (dissipation), and $H(z),S(z)$ scalar potentials realized as
+Softplus MLPs. Two structural facts anchor the analysis:
+\begin{itemize}
+\item For constant skew $J$, the reversible field is exactly
+divergence-free, $\grad\!\cdot(J\grad H)=\tr(J\,\grad^2H)=0$ (skew
+contracted with a symmetric Hessian), so all phase-space contraction
+comes from the dissipative part and is controlled by $R$ alone.
+\item The dissipation matrix is PSD by construction ($R=LL^\top$), but
+its engagement is not: with $L$ zero-initialized the loss is stationary
+in $L$ at $L=0$, a dead saddle from which no first-order optimizer
+escapes and $R\equiv0$ forever (Arm D).
+\end{itemize}
+The strict GENERIC degeneracy conditions $J\grad S=0$ and $R\grad H=0$
+\cite{grmela1997dynamics,ottinger1997dynamics} are deliberately not
+imposed: the target is an open system that must lose mechanical energy,
+and forcing $dH/dt=0$ would re-break dissipation. The residual
+degeneracy violation is a documented caveat of every metriplectic arm.
+The macroscopic control is the \emph{trace--divergence gate},
+\begin{equation}
+  \mathcal L_{\rm gate}=\beta_g\Big(\tfrac1n\tr R - r^\ast\Big)^2,
+\end{equation}
+which, via the divergence identity, pins the spectral \emph{sum}; it
+cannot pin any individual exponent (Proposition~\ref{prop:trace}).
+
+\subsection{The five arms}
+\label{sec:methods-arms}
+
+All arms share the encoder, optimizer, curriculum, and data; only the
+structural constraint on $f_\theta$ differs.
+\begin{itemize}
+\item[\textbf{B}] \emph{Unconstrained MLP:} $f_\theta(z)=z+\mathrm{MLP}(z)$,
+residual map, no structure, no physics loss (control arm).
+\item[\textbf{C}] \emph{Rigid Hamiltonian:} $f_\theta(z)=J_c\grad H_c(z)$
+with fixed constant skew $J_c$, quadratic $H_c$, and a flat
+energy-conservation penalty (a closed, volume-preserving prior ---
+structurally incapable of contraction).
+\item[\textbf{D}] \emph{Naive metriplectic:} full
+\eqref{eq:metriplectic} with learned $J$, $R=LL^\top$ zero-initialized,
+no gate. The dead saddle keeps $\tr(R)/n$ at exactly zero.
+\item[\textbf{E}] \emph{Fixed metriplectic:} constant divergence-free
+$J$, nonzero $L$ initialization, trace--divergence gate. The gate bites;
+the sum is pinned; $\lambda_1$ is not.
+\item[\textbf{F}] \emph{Spectral-aligned (short horizon):} Arm E plus
+the differentiable continuous-QR loss
+$\beta_\lambda(\hat\lambda_1-\lambda_1^{\rm ref})^2$ with a six-step
+window ($0.06$ time units $\approx0.05$ Lyapunov times).
+\item[\textbf{F-long}] \emph{Spectral-aligned (long horizon):} Arm E
+plus a 60-step differentiable QR loss ($0.6$ time units $\approx0.5$
+Lyapunov times) with truncated BPTT (frame detached every 10 steps).
+\end{itemize}
+The physics arms use the dissipative energy-balance consistency penalty
+(energy decay matched to dissipated power), and Arm C uses the flat
+variant. The spectral weight is $0.10$ (F) and $0.20$ (F-long); the gate
+weight is $0.02$.
+
+\subsection{Differentiable continuous QR (Benettin)}
+\label{sec:methods-qr}
+
+Let $A(t)=\partial_z f_\theta(z(t))\in\R^{64\times64}$ be the tangent
+operator and $X$ the fundamental matrix of $\delta\dot z=A(t)\delta z$,
+factorized $X=QR$ with $Q\in O(64)$ and $R$ upper triangular,
+$R_{ii}>0$. Substituting into $\dot X=AX$ and left-multiplying by
+$Q^\top$ gives $Q^\top A Q = Q^\top\dot Q + \dot R R^{-1}$, a unique
+decomposition into skew and upper-triangular parts, hence the
+continuous-QR system
+\begin{equation}
+\begin{split}
+  \dot Q&=Q\,\Omega,\quad \Omega_{ij}=
+    \begin{cases}(Q^\top A Q)_{ij},& i>j\\0,& i=j\\-(Q^\top A Q)_{ji},& i<j\end{cases},\\
+  \frac{d}{dt}\log R_{ii}&=(Q^\top A Q)_{ii}.
+\end{split}
+\end{equation}
+The diagonal of the pulled-back operator drives the exponents; the
+strictly-lower part rotates the frame. The implementable discrete
+scheme (Benettin--Galgani--Giorgilli--Strelcyn \cite{benettin1980lyapunov})
+propagates an orthonormal frame $Q_k$, forms the Jacobian action
+$J_{\rm local}Q_k$ by finite-difference JVP per column, advances
+$V=Q_k+dt\,J_{\rm local}Q_k$, re-orthonormalizes $V=Q_{k+1}R_k$ by
+Householder QR, and accumulates
+\begin{equation}
+  \hat\lambda_i(T)=\frac{1}{N\,dt}\sum_{k=1}^{N}\log\big|(R_k)_{ii}\big|,
+  \qquad T=N\,dt.
+\end{equation}
+The chain is differentiable end to end (``torch.linalg.qr'' backprops
+through the Householder reflections; the sign ambiguity of QR is fixed by
+$\log|\cdot|$ with a floor). For the long-horizon arm the frame is
+detached every $k=10$ steps (truncated BPTT). We probed backpropagation
+through a 100-step QR chain under three regimes --- full unroll,
+TBPTT-10, and per-step detach --- on the initialization used here; the
+total gradient norms were $8.0\times10^{-3}$, $8.7\times10^{-3}$, and
+$8.9\times10^{-3}$ respectively (all finite): on this initialization the
+failure is not gradient explosion but the proxy--truth gap documented in
+the Results. Two caveats are explicit: gradients are ill-conditioned
+near $R_{ii}\to0$ or eigenvalue collisions, and --- decisively ---
+$\hat\lambda_i(T)$ is a \emph{finite-time} exponent, not a bound on the
+asymptotic Oseledets spectrum (Proposition~\ref{prop:finite}).
+
+\subsection{Evaluation metrics}
+\label{sec:methods-eval}
+
+All evaluation is on held-out initial conditions (fixed seed), with a
+200-step autoregressive rollout ($2$ time units $\approx1.8$ Lyapunov
+times) in the learned latent space:
+\begin{itemize}
+\item \emph{Boundedness/domain invariance:} $\max\|z\|$ over the rollout;
+escape from the training support ($\|z\|\gtrsim10^2$ vs.\ in-support
+$\|z\|\approx10$) is scored per seed.
+\item \emph{Leading Lyapunov exponent $\lambda_1$:} shadow-trajectory
+Benettin on the one-step latent map, invariant under the coordinate
+warp, directly comparable to $0.884$.
+\item \emph{Contraction:} Hutchinson trace estimate
+$\tr(J_{\rm map}-I)/dt=\E_\varepsilon[\varepsilon^\top(J_{\rm map}-I)\varepsilon]/dt$
+(the divergence proxy, equal to the spectral sum) and its non-leading
+part $\kappa=\tr-\lambda_1=\sum_{i\ge2}\lambda_i$.
+\item \emph{Dissipation engagement:} $\tr(R)/n$ averaged over the
+rollout (metriplectic arms).
+\item \emph{Field-activity ratio $m$:} mean per-step displacement of the
+predicted rollout divided by the (detached) target displacement --- a
+flatlining detector; $m\approx1$ for a healthy field, $m\ll1$ for a
+frozen one.
+\item \emph{Attractor overlap:} symmetric Chamfer and Hausdorff
+distances in latent space between the predicted rollout cloud and the
+encoded ground-truth cloud.
+\item \emph{Finite-horizon proxy:} the training-time $\hat\lambda_1$
+read out at the end of training.
+\end{itemize}
+A full-spectrum (top-8) continuous-QR readout over the evaluation
+rollout cross-checks $\lambda_1$ and the non-leading sum.
+
+\subsection{Reproducibility}
+\label{sec:methods-repro}
+
+Every number in Tables~\ref{tab:atlas} and \ref{tab:lz4} is generated
+by\texttt{benchmark.py} on CPU (PyTorch 2.10, Python 3.14): three
+seeds, 250 training steps per arm, batch 128, deterministic per-step
+data. The two systems are selected by \texttt{--system lorenz} and
+\texttt{--system lz4}; the protocol and code path are otherwise
+identical. Training is bit-reproducible for a fixed thread count; a
+four-vs-eight-thread rerun of arm E shifted its exponent by
+$|\Delta\lambda_1|\lesssim0.7$, an order of magnitude below the
+seed-to-seed spread reported in the tables, so the conclusions are
+insensitive to CPU float jitter. A fully independent retraining of
+arms E and F on Lorenz-63 --- different wall-clock schedule and thread
+count --- reproduced the atlas within seed-to-seed spread (E:
+$\lambda_1=2.18\pm1.86$ vs.\ $2.22\pm1.80$; F: $2.93\pm1.85$ vs.\
+$2.85\pm1.89$; $\tr(R)/n$ and Chamfer within $2\%$), and a third
+independent retraining of the frozen arm C reproduced its statistics
+(Chamfer $3.82$--$3.91$ vs.\ $3.85\pm0.05$; $\lambda_1\approx0.008$
+vs.\ $0.011\pm0.002$). The convergence
+check above reruns the shadow exponent on the saved weights, so the
+tables, the convergence paragraph, and the reproducibility numbers are
+drawn from independent artifacts of the same protocol.
+
+\paragraph{Convergence of the reported exponents.}
+The leading exponents in Tables~\ref{tab:atlas}--\ref{tab:lz4} are
+200-step estimates (1.8 Lyapunov times). To certify that they are
+asymptotic rather than transient, the shadow-trajectory exponent was
+recomputed on the same final weights at 2000 steps (20 Lyapunov times)
+for every checkpointed arm. The frozen arm C is the only converged
+one: its exponents are $\approx0$ at both horizons on \emph{both}
+systems ($|\lambda_1(2000)|\le0.018$ and $|\lambda_1(200)|\le0.018$,
+all rollouts finite to step 2000). Every alive arm's 200-step value
+understates its
+2000-step value by an order of magnitude. On Lorenz-63, E grows from
+$+0.8$--$+4.6$ to $+8.8$--$+9.4$ and F from $+1.7$--$+5.5$ to
+$+9.8$--$+10.0$, with the latent trajectory leaving the encoder domain
+at steps 213--300 of 2000 in all six seeds. On the hyperchaotic system
+the pattern fires with a longer calm phase: the gated arms read
+$\approx0$ at 200 steps but climb to $+7.8$--$+10.1$ and escape at
+steps 304--407, and the dead-saddle arm D --- whose 200-step value is
+the nearest to the reference --- reads $+4.5$--$+19.7$ at 2000 steps
+(bounded trajectory, strongly expanding tangent map). The reported
+200-step values therefore \emph{understate} the instability of every
+alive arm on both systems, and the atlas's verdicts are conservative,
+not optimistic: any evaluation window shorter than the instability's
+onset time can certify a pathological field.
+
+The full five-arm run takes approximately 6.2 wall-clock hours on a
+20-core CPU under load. The long-horizon arm is
+\texttt{benchmark\_long.py} with a 60-step horizon and truncated BPTT;
+it is reported on the one completed seed (the five short-horizon arms
+are three seeds each). A second long-horizon run stalled without
+completing a training step (45 min without progress, CPU-bound, on
+identical code and hardware), which we attribute to the
+QR-backpropagation fragility documented in the Results --- an
+additional, if anecdotal, instance of the same instability. The
+empirical reference $\lambda_1=+0.8840$ is recovered by the same
+Benettin machinery on the true Lorenz flow.
+
+% =====================================================================
+\section*{Data availability}
+\begin{sloppypar}
+All benchmark data (rollouts, checkpoints, evaluation JSONs, and
+convergence artifacts for both systems) are generated by the released
+code and are reproducible bit-for-bit from the stated seed schedules.
+\end{sloppypar}
+
+\section*{Code availability}
+\begin{sloppypar}
+The complete benchmark (five arms, evaluation protocol, and the
+long-horizon variant) is available at
+\texttt{https://github.com/sehajr-singhs/spectral-topological-decoupling}.
+The five-arm atlas is reproduced by two commands: \texttt{python
+benchmark.py --seeds 0 1 2 --steps 250} (Lorenz-63) and
+\texttt{python benchmark.py --system lz4 --seeds 0 1 2 --steps
+250} (4-D hyperchaotic Lorenz); the long-horizon variant by
+\texttt{python benchmark\_long.py} with \texttt{--seeds 0 --steps
+120 --horizon 60}.
+\end{sloppypar}
+
+\section*{Author contributions}
+S.R.S.\ conceived the study, designed and implemented the benchmark
+suite, ran all experiments, performed the analysis, and wrote the
+manuscript.
+
+\section*{Competing interests}
+The author declares no competing interests.
+
+\section*{Acknowledgments}
+\FILL{}
+
+\begin{thebibliography}{9}
+\bibitem{lorenz1963deterministic} E.~N. Lorenz, Deterministic nonperiodic flow, \emph{J. Atmos. Sci.} \textbf{20}, 130 (1963).
+\bibitem{grmela1997dynamics} M.~Grmela, H.~C. \"Ottinger, Dynamics and thermodynamics of complex fluids. I. Development of a general formalism, \emph{Phys. Rev. E} \textbf{56}, 6620 (1997).
+\bibitem{ottinger1997dynamics} H.~C. \"Ottinger, M.~Grmela, Dynamics and thermodynamics of complex fluids. II. Illustrations of a general formalism, \emph{Phys. Rev. E} \textbf{56}, 6633 (1997).
+\bibitem{morrison1986metriplectic} P.~J. Morrison, A paradigm for joined Hamiltonian and dissipative systems, \emph{Physica D} \textbf{18}, 410 (1986).
+\bibitem{benettin1980lyapunov} G.~Benettin, L.~Galgani, A.~Giorgilli, J.-M.~Strelcyn, Lyapunov characteristic exponents for smooth dynamical systems and for Hamiltonian systems; a method for computing all of them, \emph{Meccanica} \textbf{15}, 9 (1980).
+\bibitem{oseledets1968multiplicative} V.~I. Oseledets, A multiplicative ergodic theorem. Lyapunov characteristic numbers for dynamical systems, \emph{Trans. Moscow Math. Soc.} \textbf{19}, 197 (1968).
+\bibitem{lecun2022pathway} Y.~LeCun, A path towards autonomous machine intelligence, preprint (2022).
+\bibitem{assran2023self} M.~Assran, Q.~Duval, I.~Misra, P.~Bojanowski, P.~Vincent, M.~Rabinovich, Y.~LeCun, N.~Ballas, Self-supervised learning from images with a joint-embedding predictive architecture, \emph{CVPR} (2023).
+\bibitem{bardes2024sigreg} A.~Bardes, J.~Ponce, Y.~LeCun, SIGReg: Sigmoidal Gaussian regularization for preventing collapse in joint-embedding predictive architectures, \emph{preprint} (2024).
+\bibitem{greydanus2019hamiltonian} S.~Greydanus, M.~Dzamba, J.~Yosinski, Hamiltonian neural networks, \emph{NeurIPS} (2019).
+\bibitem{cranmer2020lagrangian} M.~Cranmer, S.~Greydanus, S.~Hoyer, P.~Battaglia, D.~Spergel, S.~Ho, Lagrangian neural networks, \emph{ICLR} (2020).
+\bibitem{van2020port} S.~A.~van~der~Schaft, Port-Hamiltonian systems, \emph{Encyclopedia of Systems and Control} (2020).
+\bibitem{barreira2002lyapunov} L.~Barreira, Y.~Pesin, Lyapunov exponents and smooth ergodic theory, \emph{AMS Surveys and Monographs} \textbf{23} (2002).
+\bibitem{haller2001distinguished} G.~Haller, Distinguished material surfaces and coherent structures in three-dimensional fluid flows, \emph{Physica D} \textbf{149}, 248 (2001).
+\bibitem{qi2008hyperchaos} G.~Qi, G.~Chen, S.~Du, Z.~Chen, Z.~Yuan, Analysis of a new chaotic system, \emph{Physica A} \textbf{352}, 295 (2005). [4-D Lorenz-type hyperchaotic flow; the system used here is its standard (10, 28, 8/3, d) form.]
+\bibitem{haochen2021spectral} J.~HaoChen, C.~Wei, A.~Gaidon, J.~Ma, Provable guarantees for self-supervised deep learning with spectral contrastive loss, \emph{NeurIPS} (2021).
+\bibitem{zbontar2021barlow} J.~Zbontar, L.~Jing, I.~Misra, Y.~LeCun, S.~Deny, Barlow Twins: self-supervised learning via redundancy reduction, \emph{ICML} (2021).
+\bibitem{bardes2022vicreg} A.~Bardes, J.~Ponce, Y.~LeCun, VICReg: variance-invariance-covariance regularization for self-supervised learning, \emph{ICLR} (2022).
+\bibitem{jing2022dimensional} L.~Jing, P.~Vincent, Y.~LeCun, Y.~Tian, Understanding dimensional collapse in contrastive self-supervised learning, \emph{ICLR} (2022).
+\bibitem{zhong2020symoden} Y.~D. Zhong, B.~Dey, A.~K. Chakraborty, Symplectic ODE-net: learning Hamiltonian dynamics with control, \emph{ICLR} (2020).
+\bibitem{zhong2021dissipative} Y.~D. Zhong, B.~Dey, A.~K. Chakraborty, Dissipative SymODEN: encoding Hamiltonian dynamics with dissipation and control into deep learning, \emph{ICLR} (2021).
+\bibitem{hernandez2021metriplectic} Q.~Hern\'andez, A.~Badias, D.~Gonzalez, F.~Chinesta, E.~Cueto, Deep learning of thermodynamics-aware reduced-order models from spatiotemporal data, \emph{Comput. Methods Appl. Mech. Eng.} \textbf{379}, 113749 (2021).
+\bibitem{zhang2021generic} Z.~Zhang, S.~Shin, M.~Yacoub, J.~C.~Brigham, GENERIC formalism-based neural networks for learning dissipative and reversible dynamics, \emph{J. Comput. Phys.} \textbf{443}, 110520 (2021).
+\bibitem{kolter2019lyapunov} J.~Z.~Kolter, G.~Manek, Learning stable deep dynamics models, \emph{NeurIPS} (2019).
+\bibitem{engelken2020lyapunov} R.~Engelken, F.~Wolf, L.~F.~Abbott, Lyapunov spectra of chaotic recurrent neural networks, \emph{Phys. Rev. Lett.} \textbf{124}, 028301 (2020).
+\bibitem{chen2018neural} R.~T.~Q. Chen, Y.~Rubanova, J.~Bettencourt, D.~Duvenaud, Neural ordinary differential equations, \emph{NeurIPS} (2018).
+\bibitem{ha2018world} D.~Ha, J.~Schmidhuber, World models, \emph{arXiv:1803.10122} (2018).
+\bibitem{hafner2020mastering} D.~Hafner, T.~Lillicrap, M.~Norouzi, J.~Ba, Mastering Atari with discrete world models, \emph{ICLR} (2021).
+\bibitem{bruce2024genie} J.~Bruce, M.~Dennis, A.~Edwards, J.~Parker-Holder, Y.~Shi, E.~Hughes, M.~Mathet, A.~Beevi, F.~Hasselt, M.~Heess \emph{et al.}, Genie: generative interactive environments, \emph{ICML} (2024).
+\bibitem{bardes2024revisiting} A.~Bardes, Q.~Garrido, J.~Ponce, X.~Chen, M.~Rabbat, Y.~LeCun, M.~Assran, N.~Ballas, Revisiting feature prediction for learning visual representations from video (V-JEPA), \emph{Trans. Mach. Learn. Res.} (2024).
+\bibitem{garrido2024learning} Q.~Garrido, N.~Ballas, A.~Joulin, Y.~LeCun, Learning and leveraging world models in visual representation learning, \emph{arXiv:2403.00504} (2024).
+\bibitem{wang2020understanding} T.~Wang, P.~Isola, Understanding contrastive representation learning through alignment and uniformity on the hypersphere, \emph{ICML} (2020).
+\bibitem{ermolov2021whitening} A.~Ermolov, F.~Siomos, N.~Sebe, J.~Kannala, Whitening for self-supervised representation learning, \emph{ICML} (2021).
+\bibitem{caron2021emerging} M.~Caron, H.~Touvron, I.~Misra, H.~J\'egou, J.~Mairal, P.~Bojanowski, A.~Joulin, Emerging properties in self-supervised vision transformers, \emph{ICCV} (2021).
+\bibitem{garrido2023rankme} Q.~Garrido, R.~Balestriero, L.~Najman, Y.~LeCun, RankMe: assessing the downstream performance of pretrained self-supervised representations by their rank, \emph{ICML} (2023).
+\bibitem{karniadakis2021physics} G.~E. Karniadakis, I.~G. Kevrekidis, L.~Lu, P.~Perdikaris, S.~Wang, L.~Yang, Physics-informed machine learning, \emph{Nat. Rev. Phys.} \textbf{3}, 422--440 (2021).
+\bibitem{brunton2016discovering} S.~L. Brunton, J.~L. Proctor, J.~N. Kutz, Discovering governing equations from data by sparse identification of nonlinear dynamical systems, \emph{Proc. Natl Acad. Sci. USA} \textbf{113}, 3932--3937 (2016).
+\bibitem{iten2020ai} R.~Iten, T.~Metger, H.~Wilming, L.~del Rio, R.~Renner, Discovering physical concepts with neural networks, \emph{Phys. Rev. Lett.} \textbf{124}, 010508 (2020).
+\bibitem{toth2020hamiltonian} P.~Toth, D.~J. Rezende, A.~Jaegle, S.~Racani\`ere, A.~Botev, I.~Higgins, Hamiltonian generative networks, \emph{ICLR} (2020).
+\bibitem{lutter2019deep} M.~Lutter, C.~Ritter, J.~Peters, Deep Lagrangian networks: using physics as model prior for deep learning, \emph{ICLR} (2019).
+\bibitem{sosanya2022dissipative} A.~Sosanya, S.~Greydanus, Dissipative Hamiltonian neural networks: learning from chaotic trajectories with limited data, \emph{arXiv:2209.15832} (2022).
+\bibitem{vogt2022lyapunov} R.~Vogt, M.~Puelma Touzel, E.~Shlizerman, R.~Engelken, On Lyapunov exponents for RNNs: understanding information propagation using dynamical systems theory, \emph{ICML} (2022).
+\end{thebibliography}
+
+\end{document}

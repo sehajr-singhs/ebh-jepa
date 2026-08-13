@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.pt
+*.pth
+results/*.log
+results/benchmark_*.json   # run artifacts; committed evidence is E/F_seed*.json
+.pytest_cache/
+.ipynb_checkpoints/
