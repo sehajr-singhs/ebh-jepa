@@ -10,3 +10,6 @@ results/benchmark_*.json
 results/crafter_*.json
 .pytest_cache/
 .ipynb_checkpoints/
+*.aux
+*.log
+*.out
