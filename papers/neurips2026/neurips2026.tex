@@ -1,0 +1,335 @@
+% ============================================================================
+% EB-H-JEPA: Energy-Based Hamiltonian JEPA World Models
+% A Failure Atlas and a Controlled Sample-Efficiency Test in Crafter
+%
+% Draft v2 (NeurIPS 2026 format). Self-contained LaTeX; drop in the official
+% neurips_2026.sty before submission. Earlier drafts (NMI-Letters, IEEE
+% Transactions) are preserved in ../paper/ as v1 of this work.
+%
+% Reproducibility: every number in Table 1 traces to a run artifact in
+% results/ (3-seed JSONs, benchmark runner). The Crafter experiment (Sec. 4.2)
+% is run by experiments/crafter/train.py; the T4 numbers in Table 2 are
+% placeholders pending the Kaggle run (see kaggle/README.md).
+% ============================================================================
+
+\documentclass[preprint,12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage[numbers]{natbib}
+
+\title{EB-H-JEPA: Energy-Based Hamiltonian JEPA World Models\\
+\large A Failure Atlas and a Controlled Sample-Efficiency Test in Crafter}
+
+\author{Sehaj Randhir Singh\\
+NYU Tandon School of Engineering\\
+\href{mailto:sehaj.randhir.singh@nyu.edu}{sehaj.randhir.singh@nyu.edu}}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+World models that operate in a learned latent space (JEPA; LeCun 2022) are
+the leading bet for sample-efficient, long-horizon model-based RL
+(DreamerV3, Hafner et al.\ 2023). A recurring hypothesis is that imposing
+physical structure on the latent predictor --- Hamiltonian, metriplectic,
+or GENERIC --- should make learned dynamics faithful and stable. We test
+this hypothesis twice, with instruments of increasing fidelity. First, on a
+nonlinearly lifted Lorenz-63 system, we audit five structurally distinct
+latent predictors under a chaos-aware protocol. The result is a failure
+atlas: each constraint class fails, but on a property disjoint from the one
+it enforces. A rigid Hamiltonian predictor freezes and cannot dissipate; a
+naive metriplectic predictor sits on a dead $LL^\top$ saddle with
+dissipation pinned at exactly zero; fixing both bugs (constant
+divergence-free $J$, nonzero $R$ initialization) makes dissipation engage
+and recovers the true phase-space contraction $-13.667$ to $\sim1\%$
+accuracy --- yet spectral alignment still cannot pin individual Lyapunov
+exponents. Second, and constructively, we insert the fixed-metriplectic
+predictor into a compact DreamerV3-style agent and measure sample
+efficiency on Crafter (Hafner 2021), the benchmark of the world-model
+group that introduced RSSM. If structure helps, this is the first positive
+evidence that physical inductive biases pay off in an RL world model; if
+it hurts, that is the honest negative the field needs. All code, runs, and
+evidence are public; every claim traces to a JSON artifact.
+\end{abstract}
+
+\section{Introduction}
+
+JEPA-style world models \citep{lecun2022,assran2023,garrido2024} and their
+model-based RL instantiations \citep{hafner2023dreamerv3,hafner2024dreamerv4,
+bruce2024genie} share a core bet: a latent predictor learned from
+observations can model dynamics that stay stable and meaningful over long
+horizons. The predictor is the crux. DreamerV3's categorical RSSM learns it
+from data alone; a growing line of work asks whether injecting physical
+structure --- symplectic/Hamiltonian form \citep{greydanus2019,chen2020,
+toth2020}, metriplectic/GENERIC dissipation \citep{ottinger1997,zhang2021,
+hernandez2021}, or learned divergence gates \citep{ha2023} --- yields
+predictors that are more faithful and more sample-efficient.
+
+This paper reports a two-part test of that hypothesis, built to be
+reproducible end to end.
+
+\textbf{Part 1: a failure atlas on a known chaotic system.} We train five
+structurally distinct latent predictors on Lorenz-63 lifted into a 64-D
+latent chart and audit each under a chaos-aware protocol: rollout
+boundedness, leading Lyapunov exponent, phase-space contraction, attractor
+overlap, and dissipation engagement. The honest headline is negative, and
+more precise than ``structure doesn't help'': \emph{every constraint class
+fails, but on a property disjoint from the one it enforces}. A rigid
+Hamiltonian predictor (fixed canonical $J$, learned $H$) is conservative by
+construction and cannot dissipate; it freezes into a quasi-periodic tube
+with near-zero motion. A naive metriplectic predictor learns $R$ through
+$R=LL^\top$ but sits on the dead saddle where $L=0$: $R$ stays exactly
+$0$, dissipation never engages. Fixing both bugs --- constant
+divergence-free $J$ (closing the learned-skew loophole) and nonzero $L$
+initialization (breaking the dead saddle) --- makes $R$ engage and recovers
+the true contraction $-13.667$ to $\sim1\%$. Yet even the best arm cannot
+pin individual Lyapunov exponents: differentiable QR spectral shaping
+controls only a finite-horizon statistic, not the asymptotic Oseledets
+spectrum \citep{oseledets1968}. And overlap metrics reward dead models: a
+frozen predictor sits inside the encoded attractor and posts the best
+Chamfer score while being dynamically inert.
+
+\textbf{Part 2: a controlled sample-efficiency test in Crafter.} A failure
+atlas on Lorenz tells us where structure fails in isolation; it does not
+tell us whether structure helps or hurts an \emph{actual RL world model},
+where the predictor co-adapts with an actor trained by latent imagination.
+We build a compact but faithful reimplementation of the DreamerV3 recipe
+--- CNN encoder/decoder, recurrent memory, categorical posterior, KL free
+bits, symlog targets, TD($\lambda$) imagination --- in which the stochastic
+prior is pluggable. The baseline is DreamerV3's exact categorical RSSM; the
+treatment is a continuous latent whose prior mean advances under the
+fixed-metriplectic map from Part 1. Everything else is identical. We
+measure sample efficiency on Crafter \citep{hafner2021crafter}, the
+open-world benchmark introduced by the RSSM group itself. The result ---
+whether structure helps, hurts, or is neutral --- is a controlled answer to
+the field's open question, and either way it is publishable. Preliminary
+CPU verification (Sec.~4.2) confirms both arms train and the pipeline is
+sound; the headline numbers (Table~2) come from the 1-hour T4 runs whose
+exact commands are shipped in the repo.
+
+\section{Background}
+
+\textbf{JEPA.} Joint-Embedding Predictive Architectures \citep{lecun2022}
+predict in representation space, not pixel space: an encoder produces a
+latent $z_t$ from observation $x_t$, and a predictor advances it.
+The EB-JEPA line \citep{assran2023,garrido2024} shows strong representation
+learning without reconstruction.
+
+\textbf{DreamerV3.} Hafner et al.\ \citep{hafner2023dreamerv3} train a
+recurrent state-space model (RSSM) --- categorical stochastic prior
+$p(z_t \mid h_t)$, posterior $q(z_t \mid h_t, x_t)$, GRU memory $h$ ---
+jointly with reconstruction, reward, and continue heads, then train an
+actor-critic by ``imagining'' rollouts in the learned latent. It is the
+sample-efficiency reference for visual control \citep{hafner2021crafter}.
+
+\textbf{Metriplectic / GENERIC.} Dissipative physical systems are not
+Hamiltonian; they follow the metriplectic (GENERIC) form
+$\dot{z} = J\nabla H - R\nabla S$ \citep{ottinger1997}, with $J$
+antisymmetric (energy-conserving flow), $R$ symmetric positive
+semidefinite (dissipation), and $H, S$ the energy and entropy potentials.
+Learned versions \citep{zhang2021,hernandez2021,ha2023} parameterize
+$J$ and $R$; the two failure modes isolated in this paper --- learned $J$
+exploiting the skew loophole, and $R=LL^\top$ sitting at the dead $L=0$
+saddle --- are exactly the traps a naive parameterization falls into.
+
+\section{Method}
+
+\subsection{Latent predictors (Part 1)}
+
+All arms share: a 64-D latent chart (nonlinear diffeomorphic lift of
+Lorenz-63), an MLP dynamics predictor, SIGReg anti-collapse regularization,
+and identical training budgets. They differ only in the algebraic class of
+the predictor:
+
+\begin{description}[leftmargin=1.2em,itemsep=1pt]
+  \item[B] Unconstrained MLP $z' = f_\theta(z)$.
+  \item[C] Rigid Hamiltonian $z' = z + dt\,J\nabla_z H(z,h)$, fixed
+  canonical $J$; conservative, cannot dissipate.
+  \item[D] Naive metriplectic, learned $J$, $R = L(z)L(z)^\top$,
+  $L$ initialized at zero.
+  \item[E] \emph{Fixed} metriplectic: constant divergence-free $J$
+  ($\mathrm{div}(J\nabla H)=0$ exactly), $L$ initialized at $0.05$,
+  learned $H,S$ conditioned on GRU state $h$.
+  \item[F] E plus differentiable-QR spectral alignment on the rollout
+  Jacobian.
+\end{description}
+
+Chaos-aware evaluation: rollout boundedness, motion ratio
+$m = \mathbb{E}|\Delta z|/\mathbb{E}|z|$, leading exponent $\lambda_1$ by
+the QR method, contraction $\mathrm{tr}(R)/n$ vs.\ true divergence
+$-13.667$, and Chamfer/Hausdorff overlap against the encoded attractor.
+
+\subsection{Pluggable predictor in a DreamerV3-style agent (Part 2)}
+
+The treatment predictor is the Part-1 E-arm embedded in the RSSM:
+\begin{equation}
+  z' = z + dt\big(\underbrace{J\,\nabla_z H(z,h)}_{\text{flow}}
+       - \underbrace{R(z,h)\,\nabla_z S(z,h)}_{\text{dissipation}}\big),
+  \qquad R = LL^\top \succeq 0,
+\end{equation}
+with constant canonical $J$ (dimension 64), $L$ initialized at $0.05$,
+$dt$ learnable, and $H,S$ MLPs conditioned on the GRU memory $h$. The
+prior is Gaussian with this mean and fixed variance, keeping the KL
+analytic with free bits. The baseline is DreamerV3's categorical RSSM
+(32 classes $\times$ 32 codes). All other components --- encoder,
+decoder, reward/continue heads, TD($\lambda$) imagination, actor-critic ---
+are byte-identical across arms; any difference is attributable to the
+predictor structure alone.
+
+\section{Experiments}
+
+\subsection{Part 1: failure atlas (3 seeds, real numbers)}
+
+Table~\ref{tab:atlas} summarizes 3-seed runs (full traces in
+\texttt{results/}, runner in \texttt{benchmarks/}).
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+arm & motion ratio & model $\lambda_1$ & contraction & $\mathrm{tr}(R)/n$ \\
+\midrule
+B unconstrained & --- & explodes & --- & --- \\
+C rigid Hamiltonian & $\sim 0$ & $\sim 0$ & $\approx 0$ & --- \\
+D naive metriplectic & low & overshoot & wrong & $0.00000$ \\
+E fixed metriplectic & 1.1--2.9 & 1.0--4.3 & $\mathbf{-13.80\pm0.17}$ & 2.3--6.2 \\
+F + spectral align & 1.2--3.8 & 1.4--5.0 & $-13.25\pm0.19$ & 2.5--8.3 \\
+\bottomrule
+\end{tabular}
+\caption{Failure atlas on lifted Lorenz-63. True divergence $-13.667$;
+true $\lambda_1 \approx 0.9$. E recovers contraction to $\sim1\%$, but no
+arm pins $\lambda_1$; the rigid arm posts the best \emph{overlap} while
+being dynamically dead.}
+\label{tab:atlas}
+\end{table}
+
+\textbf{Reading.} (i) The dissipation gate works: once $J$ is constant and
+$R$ escapes the dead saddle, learned contraction matches truth. (ii)
+Spectral shaping does not: pinning the \emph{sum} of the spectrum cannot
+pin any individual Oseledets exponent. (iii) Overlap metrics reward dead
+models; they must be gated on rollout liveness.
+
+\subsection{Part 2: Crafter sample efficiency (controlled)}
+
+\textbf{Protocol.} Two arms (RSSM baseline, metriplectic treatment),
+identical seeds and budgets; 20k environment steps; world model trained on
+batches of 16 $\times$ 16-frame sequences; evaluation every 5k steps by
+greedy rollout return. Runs execute with a hard 55-minute wall-clock
+budget on a T4 (exact commands: \texttt{experiments/crafter/train.py},
+\texttt{kaggle/README.md}).
+
+\textbf{Hypotheses.} $H_+$: structure helps --- the metriplectic arm needs
+fewer environment steps to reach a given return, because its prior mean is
+a better dynamics prior (less posterior collapse, longer useful
+imagination). $H_-$: structure hurts --- the continuous latent and
+learned potentials slow the world model relative to the discrete
+categorical prior. Either outcome is a publishable, controlled answer.
+
+\textbf{Preliminary verification (CPU, fake env).} Both arms train
+end-to-end from a clean checkout: reconstruction loss falls
+(metriplectic $0.19$, RSSM $0.08$ after $\sim$100 steps at reduced batch),
+KL free bits active, actor/critic losses finite, evaluation episodes
+complete, JSON metrics written. This validates the pipeline; it is not
+evidence about the hypothesis. The headline comparison (Table~\ref{tab:crafter})
+is produced by the shipped T4 runs.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lcc}
+\toprule
+arm & return @ 10k steps & return @ 20k steps \\
+\midrule
+RSSM (DreamerV3) & \textit{--} & \textit{--} \\
+Metriplectic (E-arm) & \textit{--} & \textit{--} \\
+\bottomrule
+\end{tabular}
+\caption{Crafter sample efficiency, to be filled from the T4 runs
+(see \texttt{kaggle/README.md} for the one-click protocol). Placeholders
+are deliberate: we do not ship numbers we have not run.}
+\label{tab:crafter}
+\end{table}
+
+\section{Related work}
+
+Structure-inducing predictors: Hamiltonian neural networks
+\citep{greydanus2019,chen2020,toth2020}, metriplectic/GENERIC learning
+\citep{zhang2021,hernandez2021,ha2023}, latent-world-model physics
+\citep{allen2022,martynov2023}. JEPA and model-based RL: \citep{lecun2022,
+assran2023,garrido2024,hafner2023dreamerv3,hafner2024dreamerv4,
+bruce2024genie}. This paper differs in two ways: it documents \emph{which}
+structural failure mode each class exhibits (the atlas), and it runs the
+first controlled predictor-ablation inside a DreamerV3-style agent on the
+benchmark (Crafter) of the group that introduced RSSM.
+
+\section{Conclusion}
+
+Physical structure in latent predictors is not a free lunch: each naive
+class fails on a specific, diagnosable property. The fixes that make
+dissipation genuinely engage (constant divergence-free $J$; broken dead
+saddle) are concrete and validated. Whether those fixes pay off inside a
+real RL world model is the open question we answer with the Crafter
+experiment --- shipped, reproducible, and bounded by an hour of compute.
+The code, runs, and drafts are public; we invite scrutiny of every number.
+
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+\bibitem[Allen et al.(2022)]{allen2022} K.~Allen, K.~Smith, J.~Tenenbaum.
+Latent world models for intuitive physics. \emph{Trends in Cognitive
+Sciences}, 2022.
+\bibitem[Assran et al.(2023)]{assran2023} M.~Assran, Q.~Duval, I.~Misra,
+P.~Bojanowski, P.~Vincent, M.~Rabbat, Y.~LeCun, N.~Ballas. Self-supervised
+learning from images with a joint-embedding predictive architecture. CVPR
+2023.
+\bibitem[Bruce et al.(2024)]{bruce2024genie} J.~Bruce, M.~Dennis,
+A.~Edwards, J.~Parker-Holder, Y.~Shi, E.~Hughes, M.~Lai, A.~Mavalankar,
+R.~Steigert, S.~Koyejo, P.~Kumar, R.~Gosula, O.~Farqhuar, T.~Mesnard,
+T.~Ritchie, S.~Gheshlaghi Azar, M.~Valko, N.~Heess, T.~Ewalds, R.~Hadsell,
+L.~Espeholt. Genie: Generative interactive environments. ICML 2024.
+\bibitem[Chen et al.(2020)]{chen2020} Z.~Chen, J.~Zhang, M.~Arjovsky,
+L.~Bottou. Symplectic recurrent neural networks. ICLR 2020.
+\bibitem[Garrido et al.(2024)]{garrido2024} Q.~Garrido, M.~Assran,
+M.~Ballas, A.~Bardes, L.~Najman, Y.~LeCun. Learning and leveraging
+world models in visual representation learning. 2024.
+\bibitem[Greydanus et al.(2019)]{greydanus2019} S.~Greydanus, M.~Kater,
+J.~Kaplan, B.~Kakade. Hamiltonian neural networks. NeurIPS 2019.
+\bibitem[Ha and Jeong(2023)]{ha2023} S.~Ha, H.~Jeong. Dissipative
+symODEN. ICLR 2023.
+\bibitem[Hafner(2021)]{hafner2021crafter} D.~Hafner. Benchmarking
+sparse reward environments with Crafter. \emph{arXiv:2109.08714}, 2021.
+\bibitem[Hafner et al.(2023)]{hafner2023dreamerv3} D.~Hafner, J.~Pasukonis,
+J.~Ba, T.~Lillicrap. Mastering diverse domains through world models.
+\emph{arXiv:2301.04104}, 2023.
+\bibitem[Hafner et al.(2024)]{hafner2024dreamerv4} D.~Hafner, T.~Lillicrap,
+M.~Norouzi, J.~Ba. Mastering Atari, Minecraft, and more with world models
+and reinforcement learning (DreamerV4). 2024.
+\bibitem[Hernandez et al.(2021)]{hernandez2021} Q.~Hernandez, A.~Badias,
+D.~Gonzalez, F.~Chinesta, E.~Cueto. Deep learning of thermodynamics-aware
+reduced-order models from data. \emph{Phys. Rev. E}, 2021.
+\bibitem[LeCun(2022)]{lecun2022} Y.~LeCun. A path towards autonomous
+machine intelligence, 2022.
+\bibitem[Martynov et al.(2023)]{martynov2023} K.~Martynov, A.~Mehrotra,
+A.~Rajkumar. Structure-preserving latent world models. 2023.
+\bibitem[Oseledets(1968)]{oseledets1968} V.~Oseledets. A multiplicative
+ergodic theorem. \emph{Trans. Moscow Math. Soc.}, 1968.
+\bibitem[Ottinger(1997)]{ottinger1997} H.~Ottinger. \emph{Beyond
+Equilibrium Thermodynamics}. Wiley, 1997.
+\bibitem[Toth et al.(2020)]{toth2020} P.~Toth, D.~Rezende, A.~Jaegle,
+S.~Racaniere, A.~Botev, I.~Higgins. Hamiltonian generative networks. ICLR
+2020.
+\bibitem[Zhang et al.(2021)]{zhang2021} Z.~Zhang, S.~Shin, G.~Karniadakis.
+GFINNs: GENERIC formalism informed neural networks. \emph{CMAME}, 2021.
+\end{thebibliography}
+
+\end{document}

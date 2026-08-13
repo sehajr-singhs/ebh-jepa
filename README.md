@@ -71,6 +71,21 @@ Every run writes `results/benchmark_<timestamp>.json` with full metadata
 (device, torch version, seed, wall time) so paper claims trace to a concrete
 run. Recorded 3-seed evidence from the paper is in `results/`.
 
+## The constructive experiment (new): Crafter sample efficiency
+
+The Lorenz atlas is a negative result; the constructive question is whether
+the E-arm fixes pay off inside a real RL world model. `experiments/crafter/`
+contains a compact DreamerV3-style agent whose RSSM stochastic prior is
+pluggable: **DreamerV3's categorical RSSM (baseline)** vs. **the
+fixed-metriplectic map (treatment)** — identical everything else. Both arms
+run on Crafter (Hafner 2021), the benchmark of the world-model group that
+introduced RSSM. Either outcome is publishable: structure helping (first
+positive evidence for physical priors in an RL world model) or hurting (the
+honest negative the field needs).
+
+A one-hour T4 protocol (both arms, hard budget, free Kaggle GPU) is ready in
+[`kaggle/`](kaggle/README.md) — one click after a 2-minute Kaggle setup.
+
 ## Repository layout
 
 ```
@@ -79,8 +94,12 @@ src/ebhjepa/ebhjepa.py    # the entire method: encoders, Hamiltonian /
                           #   chaos-aware evaluation (single-file, like
                           #   DreamerV3's dreamer.py)
 benchmarks/               # reproducible 5-arm runner -> results JSON
+experiments/crafter/      # DreamerV3-style agent, pluggable predictor,
+                          #   for the Crafter sample-efficiency test
+kaggle/                   # one-click 1-hour T4 run (free GPU)
 tests/                    # fast CPU smoke tests
-paper/                    # manuscript drafts (NMI-Letters, IEEE Trans.)
+paper/                    # manuscript drafts v1 (NMI-Letters, IEEE Trans.)
+papers/neurips2026/       # consolidated paper v2 (NeurIPS format)
 docs/figs/                # paper figures
 docs/OUTREACH.md          # why this project, who it's for, next steps
 ```
@@ -88,8 +107,10 @@ docs/OUTREACH.md          # why this project, who it's for, next steps
 ## Papers
 
 - `paper/nmi_letters.tex` — Nature Machine Intelligence (Letters) format,
-  149-word abstract, 3.4k-word main text, 5 display items.
-- `paper/ieee_transactions.tex` — IEEE Transactions format, 10 pp.
+  149-word abstract, 3.4k-word main text, 5 display items. *(v1 draft)*
+- `paper/ieee_transactions.tex` — IEEE Transactions format, 10 pp. *(v1 draft)*
+- `papers/neurips2026/neurips2026.tex` — consolidated v2: the failure atlas
+  plus the Crafter controlled experiment (Table 2 filled by the T4 run).
 
 Author: Sehaj Randhir Singh (independent researcher; partial affiliation with
 NYU Tandon School of Engineering).
