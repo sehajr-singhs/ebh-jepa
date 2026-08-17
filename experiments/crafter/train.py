@@ -171,6 +171,8 @@ def main():
                     help="WM+AC update batches per env step")
     ap.add_argument("--eval-every", type=int, default=5000)
     ap.add_argument("--eval-episodes", type=int, default=1)
+    ap.add_argument("--audit-every", type=int, default=2000,
+                    help="latent-stability audit interval (0 = off)")
     ap.add_argument("--max-seconds", type=int, default=0,
                     help="hard stop (0 = no budget). 3300 fits inside 1h.")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -206,7 +208,8 @@ def main():
 
     metrics = {"predictor": args.predictor, "env": env_name, "config": cfg,
                "steps": [], "eval_return": [], "wm_rec": [], "wm_kl": [],
-               "reward": [], "actor_loss": [], "critic_loss": []}
+               "reward": [], "actor_loss": [], "critic_loss": [],
+               "stability": []}
     t_start = time.time()
     step = 0
     obs = env.reset()
@@ -304,6 +307,17 @@ def main():
                           f"critic={il['critic'].item():.3f} "
                           f"[{time.time()-t_start:.0f}s]")
 
+            # ---- latent-stability audit -------------------------------------
+            if args.audit_every and step % args.audit_every == 0 and step > 0 \
+                    and len(buffer.episodes) >= 2:
+                aud = stability_audit(wm, buffer, cfg, device)
+                aud["step"] = step
+                metrics["stability"].append(aud)
+                print(f"  audit @ {step}: drift={aud['drift']:.4f} "
+                      f"kl_raw={aud['kl_raw']:.3f} norm={aud['latent_norm']:.3f}"
+                      + (f" diss={aud['dissipation']:.4f}"
+                         if "dissipation" in aud else ""))
+
             # ---- eval + budget --------------------------------------------
             if step % args.eval_every == 0 and step > 0:
                 ret = evaluate(wm, ac, env_name, args.eval_episodes, device, cfg)
@@ -315,6 +329,60 @@ def main():
     except KeyboardInterrupt:
         pass
     finish()
+
+
+def stability_audit(wm, buffer, cfg, device, T=8, B=8):
+    """Latent-stability metrics for one batch, no_grad.
+
+    The DreamerV3 latent-stability question: how far does the learned
+    PRIOR drift from where the POSTERIOR lands after the real observation
+    arrives? Reports, per timestep averaged over the batch:
+      drift       mean squared distance prior-sample vs posterior latent
+      kl_raw      prior/posterior KL WITHOUT free-bit clamping (predictive
+                  error the free-bit loss hides)
+      latent_norm mean squared latent norm (boundedness of the predictor)
+      dissipation mean tr(R)/dim for the metriplectic arm (does dissipation
+                  engage inside the RL loop — mirrors the Lorenz atlas)
+    """
+    obs_b, act_b, _, _ = buffer.sample_batch(B, T, device, cfg["action_dim"])
+    with torch.no_grad():
+        zs, _ = wm.observe(obs_b, act_b)   # posterior latents (T,B,D)
+        feat = wm.encoder(obs_b.reshape(-1, 3, cfg["obs_size"], cfg["obs_size"])
+                          ).reshape(T, B, -1)
+        h = torch.zeros(B, cfg["gru_dim"], device=device)
+        z_prev = None
+        drift = kl_raw = norm = diss = 0.0
+        for t in range(T):
+            if wm.predictor_type == "rssm":
+                p = torch.distributions.Categorical(logits=wm.prior.prior(h)
+                                                    .view(-1, wm.prior.codes, wm.prior.classes))
+                q = torch.distributions.Categorical(logits=wm.prior.posterior(
+                    torch.cat([h, feat[t]], -1))
+                    .view(-1, wm.prior.codes, wm.prior.classes))
+                kl_raw += torch.distributions.kl.kl_divergence(q, p).sum(-1).mean()
+                z, _ = wm.prior.sample(h, detach_grad=True)  # pure prior
+            else:
+                mu_p = wm.prior.step_from(z_prev, h, detach_grad=True)
+                var_p = torch.exp(wm.prior.logvar).expand_as(mu_p)
+                mu_q, lv_q = wm.prior.posterior_params(h, feat[t])
+                var_q = torch.exp(lv_q)
+                kl_raw += (0.5 * (lv_q - wm.prior.logvar.unsqueeze(0)
+                                  + (var_p + (mu_p - mu_q).square()) / var_q
+                                  - 1.0)).sum(-1).mean()
+                z = wm.prior.posterior_sample(h, feat[t])
+                R = wm.prior._R(z, h)
+                diss += (torch.diagonal(R, dim1=-2, dim2=-1).sum(-1)
+                         / wm.prior.z_dim).mean()
+            drift += (z - zs[t]).square().mean(-1).mean()
+            norm += z.square().mean(-1).mean()
+            z_prev = z
+            h = wm.gru(wm.z_in(torch.cat([act_b[t], z], -1)), h)
+        out = dict(drift=float((drift / T).item()),
+                   kl_raw=float((kl_raw / T).item()),
+                   latent_norm=float((norm / T).item()))
+        if wm.predictor_type == "metriplectic":
+            out["dissipation"] = float((diss / T).item())
+        return out
 
 
 def ac_states(wm, buffer, cfg, device):

@@ -224,17 +224,22 @@ class MetriplecticPrior(nn.Module):
         value is exact while gradient flow downstream (e.g. to the actor
         through the direct z + dt*field path) stays cheap and memory-safe.
         """
-        z = z.detach().requires_grad_(True)
-        zh = torch.cat([z, h], -1)
-        gH = torch.autograd.grad(self.energy(zh).sum(), z, create_graph=False)[0]
-        gS = torch.autograd.grad(self.entropy(zh).sum(), z, create_graph=False)[0]
-        R = self._R(z, h)
-        # J gradH = (gH @ J^T) for constant J; see derivation in module docstring
-        field = (gH @ self.J.t()).unsqueeze(-1) - R @ gS.unsqueeze(-1)
-        dt = torch.exp(self.ln_dt)
-        for _ in range(self.substeps):
-            z = z + dt * field.squeeze(-1)
-        return z
+        # re-enable grad even when called under no_grad (e.g. the stability
+        # audit): autograd.grad needs a live graph w.r.t. z
+        with torch.enable_grad():
+            z = z.detach().requires_grad_(True)
+            zh = torch.cat([z, h], -1)
+            gH = torch.autograd.grad(self.energy(zh).sum(), z,
+                                     create_graph=False)[0]
+            gS = torch.autograd.grad(self.entropy(zh).sum(), z,
+                                     create_graph=False)[0]
+            R = self._R(z, h)
+            # J gradH = (gH @ J^T) for constant J; see derivation in module docstring
+            field = (gH @ self.J.t()).unsqueeze(-1) - R @ gS.unsqueeze(-1)
+            dt = torch.exp(self.ln_dt)
+            for _ in range(self.substeps):
+                z = z + dt * field.squeeze(-1)
+        return z.detach()
 
     def sample(self, h, x_feat=None, detach_grad=False, sample=True):
         if x_feat is None:  # prior: Gaussian centered on the metriplectic map
