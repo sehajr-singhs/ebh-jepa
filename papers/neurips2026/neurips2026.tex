@@ -225,8 +225,14 @@ models; they must be gated on rollout liveness.
 \textbf{Protocol.} Two arms (RSSM baseline, metriplectic treatment),
 identical seeds and budgets; 20k environment steps; world model trained on
 batches of 16 $\times$ 16-frame sequences; evaluation every 5k steps by
-greedy rollout return. Runs execute with a hard 55-minute wall-clock
-budget on a T4 (exact commands: \texttt{experiments/crafter/train.py},
+greedy rollout return. KL free bits use a matched \emph{total} budget of
+32 bits across arms (1.0 per categorical code, as in DreamerV3, vs.~0.5
+per continuous dimension), so posterior-collapse slack cannot confound the
+comparison. Every 2k steps the agent logs a latent-stability audit: raw
+(uncapped) prior/posterior KL, prior-vs-posterior drift normalized by
+latent scale, latent boundedness, and --- for the metriplectic arm ---
+dissipation engagement $\mathrm{tr}(R)/n$. Runs execute with a hard
+wall-clock budget on a T4 (exact commands: \texttt{experiments/crafter/train.py},
 \texttt{kaggle/README.md}).
 
 \textbf{Hypotheses.} $H_+$: structure helps --- the metriplectic arm needs
@@ -237,12 +243,13 @@ learned potentials slow the world model relative to the discrete
 categorical prior. Either outcome is a publishable, controlled answer.
 
 \textbf{Preliminary verification (CPU, fake env).} Both arms train
-end-to-end from a clean checkout: reconstruction loss falls
-(metriplectic $0.19$, RSSM $0.08$ after $\sim$100 steps at reduced batch),
-KL free bits active, actor/critic losses finite, evaluation episodes
-complete, JSON metrics written. This validates the pipeline; it is not
-evidence about the hypothesis. The headline comparison (Table~\ref{tab:crafter})
-is produced by the shipped T4 runs.
+end-to-end from a clean checkout: reconstruction loss falls, KL free bits
+active, actor/critic losses finite, evaluation episodes complete, and the
+stability audit runs --- the metriplectic arm's dissipation engages
+($\mathrm{tr}(R)/n > 0$ and rising) inside the RL loop, mirroring the
+Lorenz atlas. This validates the pipeline; it is not evidence about the
+hypothesis. The headline comparison (Table~\ref{tab:crafter}) is produced
+by the shipped T4 runs.
 
 \begin{table}[t]
 \centering
