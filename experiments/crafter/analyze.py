@@ -14,6 +14,10 @@ import glob
 import json
 import sys
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 
 def load_runs(paths):
     runs = []
@@ -62,22 +66,29 @@ def main():
             print(f"| {pred} | {d['config'].get('seed', '?')} | {fmt(r5)} | "
                   f"{fmt(r10)} | {fmt(r15)} | {fmt(r20)} | {d.get('wall_seconds', '?')} |")
 
-    # stability: mean over the last audit entries per arm
-    print("\n# Latent stability (last audit per run)\n")
-    print("| arm | seed | drift | kl_raw | latent_norm | dissipation |")
-    print("|---|---|---|---|---|---|")
+    # stability: mean over the last audit entries per arm.
+    # NOTE: raw drift is NOT comparable across arms (1024-dim one-hot
+    # categorical vs 64-dim continuous); the scale-free quantity is
+    # drift / latent_norm (relative predictive error of the prior).
+    print("\n# Latent stability (last audit per run; drift_norm = drift/latent_norm)\n")
+    print("| arm | seed | drift | drift_norm | kl_raw | latent_norm | dissipation |")
+    print("|---|---|---|---|---|---|---|")
     for pred in sorted(by_predictor):
         for f, d in sorted(by_predictor[pred]):
             stab = d.get("stability", [])
             if not stab:
-                print(f"| {pred} | {d['config'].get('seed', '?')} | (no audit) | | | |")
+                print(f"| {pred} | {d['config'].get('seed', '?')} | (no audit) | | | | |")
                 continue
             last = stab[-1]
             diss = last.get("dissipation", "—")
             diss = f"{diss:.4f}" if isinstance(diss, float) else diss
+            dn = (last["drift"] / last["latent_norm"]) if last["latent_norm"] else float("nan")
             print(f"| {pred} | {d['config'].get('seed', '?')} | "
-                  f"{last['drift']:.4f} | {last['kl_raw']:.3f} | "
+                  f"{last['drift']:.4f} | {dn:.3f} | {last['kl_raw']:.3f} | "
                   f"{last['latent_norm']:.3f} | {diss} |")
+
+    # plots: eval return + normalized drift curves per arm
+    plot_curves(by_predictor)
 
     # head-to-head at matched steps
     print("\n# Head-to-head at matched env steps\n")
@@ -91,6 +102,37 @@ def main():
                 print(f"  step {s:5d}: rssm {ra:6.2f} | metriplectic {rb:6.2f} | "
                       f"delta {diff:+.2f} {'(structure helps)' if diff > 0 else '(structure hurts/neutral)'}")
     return 0
+
+
+def plot_curves(by_predictor):
+    """Eval return and normalized drift vs env steps -> PNGs in results/."""
+    try:
+        fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+        colors = {"rssm": "#1f77b4", "metriplectic": "#d62728"}
+        for pred, runs in by_predictor.items():
+            color = colors.get(pred, None)
+            for f, d in runs:
+                xs = [s for s, _ in d["eval_return"]]
+                ys = [r for _, r in d["eval_return"]]
+                if xs:
+                    ax[0].plot(xs, ys, "o-", color=color, label=pred if color else None)
+                stab = d.get("stability", [])
+                if stab:
+                    sx = [a["step"] for a in stab]
+                    sy = [a["drift"] / a["latent_norm"] if a["latent_norm"] else float("nan")
+                          for a in stab]
+                    ax[1].plot(sx, sy, "s-", color=color,
+                               label=pred + " (drift_norm)" if color else None)
+        ax[0].set_xlabel("env steps"); ax[0].set_ylabel("eval return")
+        ax[0].set_title("Crafter sample efficiency"); ax[0].legend()
+        ax[1].set_xlabel("env steps"); ax[1].set_ylabel("drift / ||z||")
+        ax[1].set_title("Latent stability (prior-vs-posterior drift)")
+        ax[1].legend()
+        fig.tight_layout()
+        fig.savefig("results/crafter_curves.png", dpi=150)
+        print("\nwrote results/crafter_curves.png")
+    except Exception as e:
+        print("plot failed:", e)
 
 
 if __name__ == "__main__":
