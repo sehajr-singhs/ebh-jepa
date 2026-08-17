@@ -61,7 +61,9 @@ CONFIG = dict(
     wm_lr=1e-4,
     actor_lr=3e-5,
     critic_lr=3e-5,
-    kl_free_bits=1.0,
+    kl_free_bits_total=32.0,  # total KL free-bit budget, matched across
+                              #   arms: 1.0/component for 32-code RSSM,
+                              #   0.5/dim for the 64-dim continuous prior
     grad_clip=100.0,       # DreamerV3's large WM clip
     gamma=0.997,           # long-horizon discount used by DreamerV3
     lambda_=0.95,          # TD(lambda) for imagination returns
@@ -161,7 +163,9 @@ class CategoricalPrior(nn.Module):
             logits=self.posterior(torch.cat([h, x_feat], -1))
             .view(-1, self.codes, self.classes))
         kl = torch.distributions.kl.kl_divergence(q, p)  # (B, codes)
-        kl = kl.clamp_min(CONFIG["kl_free_bits"]).sum(-1).mean()
+        fb = getattr(self, "free_bits", CONFIG.get("kl_free_bits_total", 32.0)
+                     / self.codes)
+        kl = kl.clamp_min(fb).sum(-1).mean()
         return kl
 
 
@@ -268,7 +272,9 @@ class MetriplecticPrior(nn.Module):
         var_q = torch.exp(logvar_q)
         kl = (0.5 * (logvar_q - self.logvar.unsqueeze(0)
                      + (var_p + (mu_p - mu_q).square()) / var_q - 1.0))
-        kl = kl.clamp_min(CONFIG["kl_free_bits"]).sum(-1).mean()
+        fb = getattr(self, "free_bits", CONFIG.get("kl_free_bits_total", 32.0)
+                     / self.z_dim)
+        kl = kl.clamp_min(fb).sum(-1).mean()
         return kl
 
     def posterior_sample(self, h, x_feat, sample=True):
@@ -297,12 +303,18 @@ class WorldModel(nn.Module):
                               if predictor == "metriplectic"
                               else cfg["action_dim"] + cfg["z_classes"] * cfg["z_codes"],
                               cfg["gru_dim"])
+        # per-component free bits from a TOTAL budget, matched across arms
+        # (RSSM: 32 codes -> 1.0 each, DreamerV3's exact setting; continuous
+        #  64-dim -> 0.5 each), so posterior-collapse slack cannot confound
+        total_fb = cfg.get("kl_free_bits_total", 32.0)
         if predictor == "rssm":
             self.prior = CategoricalPrior(cfg["z_classes"], cfg["z_codes"],
                                           cfg["gru_dim"], cfg["feat_dim"])
+            self.prior.free_bits = total_fb / cfg["z_codes"]
         elif predictor == "metriplectic":
             self.prior = MetriplecticPrior(cfg["z_dim"], cfg["gru_dim"],
                                            cfg["feat_dim"], cfg["dt"], cfg["substeps"])
+            self.prior.free_bits = total_fb / cfg["z_dim"]
         else:
             raise ValueError(predictor)
         self.reward_head = nn.Sequential(nn.Linear(cfg["gru_dim"] + self._zdim(), 512),
