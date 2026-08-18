@@ -1,0 +1,13 @@
+{
+  "id": "sehajrsingh/ebh-jepa-mount-diag",
+  "title": "EBH JEPA mount diag",
+  "code_file": "diag.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "competition_sources": [],
+  "dataset_sources": ["sehajrsingh/ebh-jepa-crafter-env"],
+  "model_sources": []
+}

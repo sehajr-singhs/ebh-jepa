@@ -22,20 +22,36 @@ import subprocess
 import sys
 import time
 
-INPUT = "/kaggle/input/ebh-jepa-crafter-env"
 OUT = "/kaggle/working/crafter_results"
 SEEDS = [int(s) for s in os.environ.get("CRAFTER_SEEDS", "0 1 2").split()]
 MAX_SECONDS = int(os.environ.get("CRAFTER_MAX_SECONDS", "1380"))  # 23 min/run
 
-assert os.path.isdir(INPUT), f"dataset not mounted at {INPUT}"
-print("dataset mounted:", sorted(os.listdir(INPUT))[:8], "...")
+# Kaggle's mount layout changed: datasets now live under
+# /kaggle/input/datasets/<owner>/<slug>/ (older kernels used /kaggle/input/<slug>/).
+CANDIDATES = [
+    "/kaggle/input/datasets/sehajrsingh/ebh-jepa-crafter-env",
+    "/kaggle/input/ebh-jepa-crafter-env",
+]
+INPUT = next((p for p in CANDIDATES if os.path.isdir(p)), None)
+assert INPUT, f"dataset not mounted (tried {CANDIDATES})"
+print("dataset mounted at", INPUT, "->", sorted(os.listdir(INPUT))[:8], "...")
 
 # --- 1. offline install of crafter + vendored deps --------------------------
+# Kaggle auto-extracts .tar.gz on upload, so the sdist arrives as a directory
+# (crafter-1.8.3/crafter-1.8.3/ with setup.py) rather than the tarball.
+def find_sdist():
+    for p in glob.glob(f"{INPUT}/crafter-*/**/setup.py", recursive=True):
+        return os.path.dirname(p)
+    for p in glob.glob(f"{INPUT}/crafter-*.tar.gz"):
+        return p
+    raise FileNotFoundError(f"no crafter sdist under {INPUT}")
+
+
 def offline_install():
     subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                     "--no-index", "--find-links", INPUT,
                     "--no-build-isolation",
-                    glob.glob(f"{INPUT}/crafter-*.tar.gz")[0]],
+                    find_sdist()],
                    check=True)
 
 
