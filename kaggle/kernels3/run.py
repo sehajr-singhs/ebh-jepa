@@ -39,6 +39,10 @@ print("dataset mounted at", INPUT, "->", sorted(os.listdir(INPUT))[:8], "...")
 # --- 1. offline install of crafter + vendored deps --------------------------
 # Kaggle auto-extracts .tar.gz on upload, so the sdist arrives as a directory
 # (crafter-1.8.3/crafter-1.8.3/ with setup.py) rather than the tarball.
+# crafter itself is pure Python: we skip pip's sdist build entirely and copy
+# the package dir straight into site-packages. Deps install from vendored
+# wheels with --no-index (no kernel internet).
+
 def find_sdist():
     for p in glob.glob(f"{INPUT}/crafter-*/**/setup.py", recursive=True):
         return os.path.dirname(p)
@@ -48,11 +52,21 @@ def find_sdist():
 
 
 def offline_install():
+    # 1. wheel deps: imageio, opensimplex, ruamel.yaml + its C ext
     subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                     "--no-index", "--find-links", INPUT,
-                    "--no-build-isolation",
-                    find_sdist()],
+                    "imageio", "opensimplex", "ruamel.yaml"],
                    check=True)
+    # 2. crafter: copy the pure-python package into site-packages
+    import site
+    sdist = find_sdist()
+    pkg_src = os.path.join(sdist, "crafter")
+    assert os.path.isdir(pkg_src), f"no crafter package dir at {pkg_src}"
+    dst = os.path.join(site.getsitepackages()[0], "crafter")
+    if os.path.exists(dst):
+        shutil.rmtree(dst)
+    shutil.copytree(pkg_src, dst)
+    print(f"crafter copied to {dst}")
 
 
 try:
