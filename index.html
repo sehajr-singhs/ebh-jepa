@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="EB-H-JEPA: Energy-based Hamiltonian JEPA world models. A failure atlas of physical latent predictors on Lorenz-63 and a controlled sample-efficiency test of DreamerV3 latent stability on Crafter.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EB-H-JEPA</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/computer-modern/cmu-serif.css">
+
+  <script>
+    MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+  <style>
+    :root {
+      --ink: #1a1a1a; --muted: #555; --faint: #8c8e90; --panel: #f8f8f8;
+      --border: #c4c6c8; --link: #226999; --good: #1e6b3a; --bad: #b03a2e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: #fff; }
+    body { font-family: 'CMU Serif', Georgia, serif; font-weight: 500;
+      color: var(--ink); -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+    .has-text-centered { text-align: center; }
+    .has-text-justified { text-align: justify; }
+
+    .hero { padding: 4.2rem 0 1.6rem; }
+    .publication-title { font-family: 'CMU Serif', Georgia, serif;
+      font-weight: 700 !important; line-height: 1.12; letter-spacing: 0;
+      font-size: 2.5rem; text-wrap: balance; }
+    .publication-title strong { font-weight: 900 !important; }
+    .publication-sub { margin-top: 1.1rem; font-family: 'Inter', sans-serif;
+      font-size: 1.05rem; color: var(--muted); line-height: 1.5;
+      max-width: 60rem; margin-left: auto; margin-right: auto; }
+    .tagline { margin-top: 0.9rem; font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.92rem; color: var(--ink); letter-spacing: 0.01em; }
+    .authors { margin-top: 1.2rem; font-family: 'Inter', sans-serif;
+      font-size: 0.95rem; color: var(--ink); }
+    .affiliation { margin-top: 0.15rem; font-family: 'Inter', sans-serif;
+      font-size: 0.82rem; color: var(--faint); }
+    .links { margin-top: 1.5rem; font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.88rem; display: flex; flex-wrap: wrap; gap: 0.6rem 1.4rem;
+      justify-content: center; }
+
+    .section { padding: 2.4rem 0 1.2rem; }
+    .title { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em;
+      margin-bottom: 1rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
+    .section p { line-height: 1.6; color: var(--ink); margin-bottom: 0.9rem; }
+    .muted { color: var(--muted); }
+
+    .abstract { background: var(--panel); border: 1px solid var(--border);
+      border-radius: 6px; padding: 1.4rem 1.6rem; font-size: 0.99rem;
+      line-height: 1.62; text-align: justify; }
+
+    .impact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.2rem; margin-top: 1.1rem; }
+    .impact { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .impact-img { width: 100%; display: block; border-bottom: 1px solid var(--border); }
+    .impact-body { padding: 0.9rem 1.1rem 1.05rem; }
+    .impact-num { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+      font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
+      color: var(--ink); margin-bottom: 0.35rem; }
+    .impact-body p { font-size: 0.88rem; line-height: 1.5; color: var(--muted); margin: 0; }
+
+    table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif;
+      font-size: 0.83rem; margin: 1rem 0 1.4rem; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    th, td { padding: 0.5rem 0.65rem; text-align: right; border-bottom: 1px solid var(--border); }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em;
+      text-transform: uppercase; color: var(--muted); background: #fff; }
+    tbody tr:last-child td { border-bottom: none; }
+    td.win { color: var(--good); font-weight: 700; }
+    td.bad { color: var(--bad); font-weight: 600; }
+    .table-note { font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem;
+      color: var(--faint); margin-top: -1rem; margin-bottom: 1.2rem; }
+    .tablescroll { overflow-x: auto; }
+
+    pre { background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+      padding: 1.1rem 1.3rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+      line-height: 1.55; overflow-x: auto; margin: 1rem 0; }
+
+    footer { margin-top: 3rem; padding: 1.6rem 0 2.6rem; border-top: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--faint);
+      text-align: center; }
+    @media (max-width: 600px) { .publication-title { font-size: 1.8rem; }
+      th, td { padding: 0.4rem 0.4rem; font-size: 0.74rem; } }
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="container has-text-centered">
+    <h1 class="publication-title">EB&#8209;H&#8209;JEPA</h1>
+    <div class="tagline">Energy-based Hamiltonian JEPA world models. Physical structure in the latent predictor — measured honestly, on the failure cases and in the RL loop.</div>
+    <div class="authors">Sehaj Randhir Singh</div>
+    <div class="affiliation">Independent researcher; partial affiliation with NYU Tandon School of Engineering</div>
+    <div class="links">
+      <a href="papers/neurips2026/neurips2026.pdf">Paper (NeurIPS format)</a><a href="https://github.com/sehajr-singhs/ebh-jepa">GitHub (code + data)</a><a href="https://www.kaggle.com/datasets/sehajrsingh/ebh-jepa-crafter-env">Offline env dataset</a><a href="https://www.kaggle.com/code/sehajrsingh/eb-h-jepa-crafter-3seed">3-seed runs on Kaggle</a>
+    </div>
+  </div>
+</section>
+
+<div class="container">
+<section class="section"><div class="abstract"><p>World models that operate in a learned latent space (JEPA; LeCun 2022) are the leading bet for sample-efficient, long-horizon model-based RL (DreamerV3, Hafner et al. 2023). A recurring hypothesis is that imposing physical structure on the latent predictor — Hamiltonian, metriplectic, or GENERIC — should make learned dynamics faithful and stable. We test this hypothesis twice, with instruments of increasing fidelity. First, on a nonlinearly lifted Lorenz-63 system, we audit five structurally distinct latent predictors under a chaos-aware protocol. The result is a <em>failure atlas</em>: each constraint class fails, but on a property disjoint from the one it enforces. A rigid Hamiltonian predictor freezes and cannot dissipate; a naive metriplectic predictor sits on a dead \\(LL^\\top\\) saddle with dissipation pinned at exactly zero; fixing both bugs (constant divergence-free \\(J\\), nonzero \\(R\\) initialization) makes dissipation engage and recovers the true phase-space contraction \\(-13.667\\) to \\(\\sim1\\%\\) accuracy — yet spectral alignment still cannot pin individual Lyapunov exponents. Second, and constructively, we insert the fixed-metriplectic predictor into a compact DreamerV3-style agent and measure sample efficiency and <strong>latent stability</strong> on Crafter (Hafner 2021), the benchmark of the world-model group that introduced RSSM. If structure helps, this is the first positive evidence that physical inductive biases pay off in an RL world model; if it hurts, that is the honest negative the field needs. All code, runs, and evidence are public; every claim traces to a JSON artifact.</p></div></section>
+
+<section class="section"><h2 class="title">The failure atlas: every constraint class fails, on a property disjoint from the one it enforces</h2><p>We train five structurally distinct latent predictors on Lorenz-63 lifted into a 64-D latent chart, and audit each under a chaos-aware protocol: rollout boundedness, leading Lyapunov exponent, phase-space contraction, attractor overlap, and dissipation engagement. The headline is more precise than "structure doesn't help": each class fails where it is <em>not</em> enforcing anything.</p>
+<div class="tablescroll"><table><thead><tr><th>Arm</th><th>Structure</th><th>λ₁ (truth ≈ 0.906)</th><th>tr(R)/n (dissipation)</th><th>contraction vs −13.667</th><th>reading</th></tr></thead><tbody>
+<tr><td>A · unconstrained</td><td>none</td><td class="bad">+5.75</td><td>n/a</td><td>n/a</td><td>explodes off the attractor</td></tr>
+<tr><td>B · rigid Hamiltonian</td><td>constant J, learned H</td><td>0.00</td><td>0 (by construction)</td><td>n/a</td><td>freezes: quasi-periodic tube, near-zero motion</td></tr>
+<tr><td>C · naive metriplectic</td><td>R = LL<sup>⊤</sup>, zero init</td><td>~0</td><td class="bad">0.00000</td><td class="bad">0.0</td><td>dead saddle: L stuck at 0, no dissipation</td></tr>
+<tr><td>D · fixed metriplectic</td><td>const. J + nonzero R₀</td><td class="win">0.81</td><td class="win">0.49</td><td class="win">−13.80 ± 0.17</td><td>R engages; true contraction recovered to ~1%</td></tr>
+<tr><td>E · fixed + spectral shaping</td><td>D + QR Lyapunov penalty</td><td class="win">0.90</td><td class="win">0.53</td><td class="win">−13.63</td><td>closest λ₁; still cannot pin individual exponents</td></tr>
+</tbody></table></div>
+<div class="table-note">3 seeds per arm; every number traces to results/*.json via benchmarks/run_benchmark.py. And the cruelest finding: the frozen Hamiltonian arm (B) posts the <em>best</em> attractor-overlap score while being dynamically inert — overlap rewards dead models.</div>
+<div class="impact-grid"><div class="impact"><img class="impact-img" src="docs/figs/fig1_atlas.png" alt=""><div class="impact-body"><div class="impact-num">The atlas, one picture</div><p>Five structural constraint classes, one chaotic test bed. Each fails on a property disjoint from the one it enforces.</p></div></div><div class="impact"><img class="impact-img" src="docs/figs/fig3_lz4.png" alt=""><div class="impact-body"><div class="impact-num">Contraction, recovered</div><p>The fixed-metriplectic arm engages R and recovers Lorenz's exact phase-space contraction −13.667 to ~1% — a mechanistic fingerprint, not a curve fit.</p></div></div></div></section>
+
+<section class="section"><h2 class="title">Latent stability in the RL loop: DreamerV3 with a pluggable predictor</h2><p>A failure atlas on Lorenz tells us where structure fails in isolation; it does not tell us whether structure helps or hurts an <em>actual RL world model</em>, where the predictor co-adapts with an actor trained by latent imagination. We build a compact but faithful reimplementation of the DreamerV3 recipe — CNN encoder/decoder, recurrent memory, categorical posterior, KL free bits, symlog targets, TD(λ) imagination — in which the stochastic prior is pluggable. The baseline is DreamerV3's exact categorical RSSM; the treatment is a continuous latent whose prior mean advances under the fixed-metriplectic map from Part 1. Everything else is byte-identical, including a matched total KL free-bit budget (32 bits per step for both arms).</p>
+<p>Beyond return, we instrument the thing the paper's title cares about: <strong>latent stability</strong>. Every 2k environment steps both arms log prior-vs-posterior drift, raw KL (free-bit slack), latent norm, and — for the treatment arm — dissipation engagement \\(\\mathrm{tr}(R)/n\\) inside the RL loop.</p>
+<div class="tablescroll"><table><thead><tr><th>metric</th><th>DreamerV3 RSSM</th><th>fixed-metriplectic prior</th></tr></thead><tbody>
+<tr><td>eval return @ 20k steps</td><td colspan="2" style="text-align:center">— (T4 run in progress; table filled from results/crafter_*.json)</td></tr>
+<tr><td>prior–posterior drift (scale-free)</td><td colspan="2" style="text-align:center">—</td></tr>
+<tr><td>raw KL (free-bit slack)</td><td colspan="2" style="text-align:center">—</td></tr>
+<tr><td>latent norm stability</td><td colspan="2" style="text-align:center">—</td></tr>
+<tr><td>dissipation tr(R)/n (treatment only)</td><td>n/a</td><td>—</td></tr>
+</tbody></table></div>
+<div class="table-note">No unrun numbers: this table is filled exclusively from the committed run JSONs in results/crafter_*.json (exact commands in kaggle/README.md).</div></section>
+
+<section class="section"><h2 class="title">Reproduce</h2><p style="margin-bottom:0.4rem"><a href="https://www.kaggle.com/datasets/sehajrsingh/ebh-jepa-crafter-env">Offline env + code dataset</a> · <a href="https://www.kaggle.com/code/sehajrsingh/eb-h-jepa-crafter-3seed">3-seed × 2-arm runs (T4)</a></p><pre>git clone https://github.com/sehajr-singhs/ebh-jepa
+cd ebh-jepa
+pip install -r requirements.txt
+python -m pytest tests/ -q                     # smoke tests: Lorenz pipeline + audit
+
+# Part 1 — the failure atlas on Lorenz-63 (CPU, ~15 min)
+python benchmarks/run_benchmark.py --steps 250
+
+# Part 2 — the Crafter RL experiment (GPU; or the Kaggle T4 kernel)
+python experiments/crafter/train.py --predictor rssm        --env crafter --train-steps 20000
+python experiments/crafter/train.py --predictor metriplectic --env crafter --train-steps 20000
+
+# Analysis → Table 2 + stability curves
+python experiments/crafter/analyze.py --results results/crafter_*.json</pre><p class="muted">Seeded protocol (3 seeds per condition), committed result JSONs, an offline Kaggle dataset so the exact experiment environment ships with the repo. No GPU required for Part 1; Part 2 runs in ~1h on a free T4.</p></section>
+</div>
+
+<footer>
+  <div class="container">
+    Sehaj Randhir Singh · independent researcher; partial affiliation with NYU Tandon ECE · 2026
+  </div>
+</footer>
+
+</body>
+</html>
