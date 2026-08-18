@@ -242,29 +242,50 @@ imagination). $H_-$: structure hurts --- the continuous latent and
 learned potentials slow the world model relative to the discrete
 categorical prior. Either outcome is a publishable, controlled answer.
 
+\textbf{Latent stability, defined.} The quantity a world model really
+sells is its \emph{prior} $p(z_t \mid h_t)$: at imagination time the actor
+rolls out the prior alone, and any gap between what the prior predicts and
+where the posterior lands after the true observation is error the agent
+acts on. We therefore instrument, every 2k steps and out-of-distribution
+from the loss (the audit runs under \texttt{no\_grad} on a fresh batch):
+(i) \emph{raw KL} $D_{\mathrm{KL}}(q\,\|\,p)$ before free-bit clamping ---
+the predictive error the loss actively hides; (ii) \emph{prior--posterior
+drift} $\mathbb{E}\|z^p_t - z^q_t\|^2$, reported scale-free as
+drift$/\|z\|^2$ so the 1024-D one-hot categorical latent and the 64-D
+continuous latent are comparable; (iii) \emph{latent boundedness}
+$\mathbb{E}\|z\|^2$; and (iv) for the treatment arm, \emph{dissipation
+engagement} $\mathrm{tr}(R)/n$ --- does the metriplectic map actually
+dissipate inside the RL loop, or does it sit on the dead saddle again?
+The hypothesis pairing: if structure helps, the metriplectic prior's drift
+and raw KL should stay below the RSSM's at matched environment steps
+(better dynamics prior $\Rightarrow$ longer useful imagination); if
+structure hurts, the continuous latent's drift should exceed the
+categorical's despite matched free-bit budgets.
+
 \textbf{Preliminary verification (CPU, fake env).} Both arms train
 end-to-end from a clean checkout: reconstruction loss falls, KL free bits
 active, actor/critic losses finite, evaluation episodes complete, and the
 stability audit runs --- the metriplectic arm's dissipation engages
 ($\mathrm{tr}(R)/n > 0$ and rising) inside the RL loop, mirroring the
 Lorenz atlas. This validates the pipeline; it is not evidence about the
-hypothesis. The headline comparison (Table~\ref{tab:crafter}) is produced
-by the shipped T4 runs.
+hypothesis. The headline comparison (Table~\ref{tab:crafter} and the
+stability curves) is produced by the shipped T4 runs.
 
 \begin{table}[t]
 \centering
 \small
-\begin{tabular}{lcc}
+\begin{tabular}{lccc}
 \toprule
-arm & return @ 10k steps & return @ 20k steps \\
+arm & return @ 20k & drift$/$\|z\|$^2$ & raw KL \\
 \midrule
-RSSM (DreamerV3) & \textit{--} & \textit{--} \\
-Metriplectic (E-arm) & \textit{--} & \textit{--} \\
+RSSM (DreamerV3) & \textit{--} & \textit{--} & \textit{--} \\
+Metriplectic (E-arm) & \textit{--} & \textit{--} & \textit{--} \\
 \bottomrule
 \end{tabular}
-\caption{Crafter sample efficiency, to be filled from the T4 runs
-(see \texttt{kaggle/README.md} for the one-click protocol). Placeholders
-are deliberate: we do not ship numbers we have not run.}
+\caption{Crafter sample efficiency and latent stability (3 seeds,
+mean $\pm$ std), to be filled from the T4 runs (see
+\texttt{kaggle/README.md}). Placeholders are deliberate: we do not ship
+numbers we have not run.}
 \label{tab:crafter}
 \end{table}
 
