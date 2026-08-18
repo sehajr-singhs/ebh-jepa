@@ -152,7 +152,8 @@ class CategoricalPrior(nn.Module):
             logits = logits.detach()
         dist = torch.distributions.OneHotCategoricalStraightThrough(
             logits=logits.view(-1, self.codes, self.classes))
-        z = dist.sample() if sample else dist.mode()
+        # NB: dist.mode is a property (Tensor), not a method
+        z = dist.sample() if sample else dist.mode
         return z.reshape(-1, self.codes * self.classes), dist
 
     def kl(self, h, x_feat):
@@ -466,7 +467,9 @@ class ActorCritic(nn.Module):
                            zs.reshape(-1, self.wm._zdim())], -1)
         with torch.no_grad():
             rew = self.wm.reward_head(feats).reshape(T, B, 1)
-            cont = self.wm.cont_head(feats).reshape(T, B, 1)
+            # cont_head outputs logits: sigmoid before using in the TD(lambda)
+            # recursion, or gamma*cont can exceed 1 and diverge geometrically
+            cont = torch.sigmoid(self.wm.cont_head(feats)).reshape(T, B, 1)
             val = self.critic(feats).reshape(T, B, 1)
         # TD(lambda) from the end
         returns = torch.zeros_like(rew)
