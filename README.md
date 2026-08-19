@@ -79,15 +79,25 @@ contains a compact DreamerV3-style agent whose RSSM stochastic prior is
 pluggable: **DreamerV3's categorical RSSM (baseline)** vs. **the
 fixed-metriplectic map (treatment)** — identical everything else. Both arms
 run on Crafter (Hafner 2021), the benchmark of the world-model group that
-introduced RSSM. Either outcome is publishable: structure helping (first
-positive evidence for physical priors in an RL world model) or hurting (the
-honest negative the field needs).
+introduced RSSM.
+
+**Result (3 seeds × 2 arms, completed T4 runs — `results/crafter/`):** at
+matched 32-bit free-bits budgets, the RSSM stochastic path **collapses to
+its prior within 2k steps** (raw KL 0.31 bits = 1% of budget; latent norm
+exactly the uniform-one-hot expectation; drift sitting precisely on the
+closed-form independent-sample noise floor 2(1−1/32) = 1.94). The
+metriplectic latent **stays live**: raw KL 34.1 bits (106% of budget),
+norm 1.49, dissipation `tr(R)/n` rising 0.0065→0.0080 inside the RL loop.
+Greedy eval returns are matched at the −0.90 floor — structure neither
+helps nor hurts sample efficiency at this budget, and the stability is
+free. Every number traces to the committed JSONs.
 
 A one-hour T4 protocol (both arms, hard budget) is ready in two flavors:
 - [`colab/`](colab/README.md) — **zero setup**: upload the ready notebook,
   pick T4 GPU, Run all (~55 min), results land in Google Drive.
 - [`kaggle/`](kaggle/README.md) — same protocol after a 2-minute
-  `kaggle.json` setup.
+  `kaggle.json` setup. The 3-seed run that produced the results above is
+  live at `sehajrsingh/eb-h-jepa-crafter-3seed`.
 
 ## Repository layout
 

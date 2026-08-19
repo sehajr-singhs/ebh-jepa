@@ -8,8 +8,8 @@
 %
 % Reproducibility: every number in Table 1 traces to a run artifact in
 % results/ (3-seed JSONs, benchmark runner). The Crafter experiment (Sec. 4.2)
-% is run by experiments/crafter/train.py; the T4 numbers in Table 2 are
-% placeholders pending the Kaggle run (see kaggle/README.md).
+% is run by experiments/crafter/train.py; Table 2 reports the real T4 runs
+% (3 seeds x 2 arms) whose JSONs live in results/crafter/.
 % ============================================================================
 
 \documentclass[preprint,12pt]{article}
@@ -56,10 +56,17 @@ accuracy --- yet spectral alignment still cannot pin individual Lyapunov
 exponents. Second, and constructively, we insert the fixed-metriplectic
 predictor into a compact DreamerV3-style agent and measure sample
 efficiency on Crafter (Hafner 2021), the benchmark of the world-model
-group that introduced RSSM. If structure helps, this is the first positive
-evidence that physical inductive biases pay off in an RL world model; if
-it hurts, that is the honest negative the field needs. All code, runs, and
-evidence are public; every claim traces to a JSON artifact.
+group that introduced RSSM, with matched 32-bit free-bits budgets and
+three seeds per arm. The controlled result is a latent-stability finding
+with matched returns: the categorical RSSM path collapses to its prior
+within 2k steps (raw KL $0.31$ bits, $1\%$ of its budget; latent norm
+exactly the uniform-one-hot expectation), while the metriplectic latent
+stays informative and bounded (raw KL $34.1$ bits, $106\%$ of budget;
+norm $1.49$) with dissipation engaged and rising. Greedy evaluation
+returns sit at the same floor in both arms: structure neither helps nor
+hurts sample efficiency at this budget, and the stability is free. All
+code, runs, and evidence are public; every claim traces to a JSON
+artifact.
 \end{abstract}
 
 \section{Introduction}
@@ -262,32 +269,80 @@ and raw KL should stay below the RSSM's at matched environment steps
 structure hurts, the continuous latent's drift should exceed the
 categorical's despite matched free-bit budgets.
 
-\textbf{Preliminary verification (CPU, fake env).} Both arms train
-end-to-end from a clean checkout: reconstruction loss falls, KL free bits
-active, actor/critic losses finite, evaluation episodes complete, and the
-stability audit runs --- the metriplectic arm's dissipation engages
-($\mathrm{tr}(R)/n > 0$ and rising) inside the RL loop, mirroring the
-Lorenz atlas. This validates the pipeline; it is not evidence about the
-hypothesis. The headline comparison (Table~\ref{tab:crafter} and the
-stability curves) is produced by the shipped T4 runs.
+\textbf{Results (T4, 3 seeds $\times$ 2 arms).} Table~\ref{tab:crafter}
+reports the aggregates; three findings.
 
-\begin{table}[t]
+\emph{(i) The RSSM stochastic path collapses.} Raw KL falls to
+$0.31\pm0.01$ bits within the first 2k steps --- $1\%$ of the 32-bit
+free-bits budget --- and stays there: the posterior is statistically
+indistinguishable from the prior. The latent norm $0.031$ is exactly the
+per-dimension expectation of a uniform 32-way one-hot ($1/32$). The
+drift metric is consequently not predictive error for this arm at all: for
+two independent samples from a uniform 32-class prior the per-dimension
+squared distance is $2(1-1/32)\cdot(1/32)=0.0605$, giving
+drift$/\|z\|^2=1.9375$ --- precisely the measured $1.94$. The categorical
+channel carries zero information; the GRU state is the world model. This
+is posterior collapse, quantified in the exact regime (free bits matched
+across arms) where the training loss stops caring about it.
+
+\emph{(ii) The metriplectic latent stays live.} Raw KL $34.1\pm0.4$
+bits --- $106\%$ of the same budget, so the posterior is doing real
+correction work; latent norm $1.49\pm0.02$, bounded and stable across
+seeds; and dissipation $\mathrm{tr}(R)/n$ rises from $0.0065$ to $0.0080$
+over training --- the E-arm mechanism (constant divergence-free $J$,
+nonzero $R$ initialization) engages inside a full RL loop, transferring
+the Lorenz-atlas finding. Its drift $1.71\pm0.09$ is genuine predictive
+error on a live latent (the Gaussian sampling-noise contribution is
+$\sim0.1$, an order of magnitude smaller), i.e.~$\sim12\%$ below the
+RSSM noise ceiling --- and unlike the RSSM number it is a signal, not
+noise.
+
+\emph{(iii) Returns are matched (the honest negative).} At 20k steps
+neither compact arm has learned a functioning greedy policy: evaluation
+return sits at the $-0.90$ floor for all three seeds of both arms, and
+reward-head predictions converge at the same rate. Structure neither
+helps nor hurts sample efficiency at this budget --- the stability gains
+above are free. Settling the sample-efficiency question either way needs
+longer runs (the full DreamerV3 recipe reaches $\sim1.5$ mean return on
+Crafter at $\sim10^6$ steps); the shipped pipeline makes that a
+wall-clock command, not a research project.\begin{table}[t]
 \centering
 \small
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-arm & return @ 20k & drift$/$\|z\|$^2$ & raw KL \\
+arm & return@20k & drift$/\|z\|^2$ & raw KL & $\mathrm{tr}(R)/n$ \\
 \midrule
-RSSM (DreamerV3) & \textit{--} & \textit{--} & \textit{--} \\
-Metriplectic (E-arm) & \textit{--} & \textit{--} & \textit{--} \\
+RSSM (DreamerV3) & $-0.90\pm0.00$ & $1.94\pm0.00^{\dagger}$ &
+$0.31\pm0.01$ & --- \\
+Metriplectic (E-arm) & $-0.90\pm0.00$ & $1.71\pm0.09$ &
+$34.06\pm0.44$ & $0.008\pm0.000$ \\
 \bottomrule
 \end{tabular}
-\caption{Crafter sample efficiency and latent stability (3 seeds,
-mean $\pm$ std), to be filled from the T4 runs (see
-\texttt{kaggle/README.md}). Placeholders are deliberate: we do not ship
-numbers we have not run.}
+\caption{Crafter, 20k env steps, 3 seeds (mean $\pm$ std); runner and
+JSONs in \texttt{results/crafter/}. Raw-KL budgets matched at 32 bits
+total (RSSM 1.0/code; metriplectic 0.5/dim): RSSM raw KL is $1\%$ of its
+budget, metriplectic $106\%$. Latent norms: RSSM $0.031$ (exactly the
+uniform 32-way one-hot expectation), metriplectic $1.49\pm0.02$.
+$^{\dagger}$closed-form noise floor $2(1-1/32)=1.9375$ for two
+independent uniform one-hot samples; the collapsed RSSM latent sits
+exactly on it, so its drift is sampling noise, not predictive error.}
 \label{tab:crafter}
 \end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../../docs/figs/fig4_crafter_stability.png}
+\caption{Crafter audit over 20k env steps (thin lines: individual seeds;
+blue = RSSM, red = metriplectic). \emph{Left:} greedy evaluation return ---
+matched at the $-0.90$ floor across arms. \emph{Right:} scale-free
+prior--posterior drift. The RSSM drift sits exactly on the closed-form
+noise floor $2(1-1/32)=1.94$ for two independent samples from a uniform
+32-class prior --- the stochastic channel is collapsed, so its drift is
+sampling noise. The metriplectic drift (1.6--1.8) is genuine predictive
+error on a live latent, $\sim12\%$ below the RSSM noise ceiling, with
+raw KL held above budget throughout (Table~\ref{tab:crafter}).}
+\label{fig:stability}
+\end{figure}
 
 \section{Related work}
 
@@ -306,10 +361,15 @@ benchmark (Crafter) of the group that introduced RSSM.
 Physical structure in latent predictors is not a free lunch: each naive
 class fails on a specific, diagnosable property. The fixes that make
 dissipation genuinely engage (constant divergence-free $J$; broken dead
-saddle) are concrete and validated. Whether those fixes pay off inside a
-real RL world model is the open question we answer with the Crafter
-experiment --- shipped, reproducible, and bounded by an hour of compute.
-The code, runs, and drafts are public; we invite scrutiny of every number.
+saddle) are concrete and validated. Inside a real RL world model, the
+controlled answer is a latent-stability result with matched returns: at
+matched free-bits budgets the categorical RSSM path collapses to its prior
+(raw KL $1\%$ of budget; drift exactly at the independent-uniform noise
+floor) while the metriplectic latent stays informative, bounded, and
+dissipative at zero measured return cost. Longer runs --- a wall-clock
+command in the shipped pipeline --- are the honest next step toward
+settling whether that stability translates into sample efficiency. The
+code, runs, and drafts are public; we invite scrutiny of every number.
 
 \bibliographystyle{plainnat}
 \begin{thebibliography}{99}
