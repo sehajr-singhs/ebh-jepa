@@ -1,0 +1,22 @@
+{
+  "tag": "E/METRIPLECTIC-FIXED s=0",
+  "finite": true,
+  "max_norm": 16.544662475585938,
+  "align_short": 0.019743502140045166,
+  "hausdorff": 13.114119529724121,
+  "chamfer": 4.534748077392578,
+  "chamfer_rel": 1.1328470310818133,
+  "lam_model": -0.5070188635727391,
+  "lam_err": NaN,
+  "contraction": -13.294372335076332,
+  "contraction_err": 4051.5957643836737,
+  "r_mag": 0.8084583282470703,
+  "pred_speed": 0.06598684191703796,
+  "targ_speed": 0.04269688203930855,
+  "true_lambda": NaN,
+  "true_div": -4064.89013671875,
+  "status": "ok",
+  "seed": 0,
+  "steps": 250,
+  "wall_seconds": 2821.4
+}

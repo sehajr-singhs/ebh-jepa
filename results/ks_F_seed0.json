@@ -1,0 +1,22 @@
+{
+  "tag": "F/SPECTRAL-ALIGNED s=0",
+  "finite": false,
+  "max_norm": Infinity,
+  "align_short": Infinity,
+  "hausdorff": Infinity,
+  "chamfer": Infinity,
+  "chamfer_rel": Infinity,
+  "lam_model": NaN,
+  "lam_err": NaN,
+  "contraction": NaN,
+  "contraction_err": NaN,
+  "r_mag": null,
+  "pred_speed": Infinity,
+  "targ_speed": NaN,
+  "true_lambda": NaN,
+  "true_div": -4064.89013671875,
+  "status": "ok",
+  "seed": 0,
+  "steps": 250,
+  "wall_seconds": 3776.7
+}
