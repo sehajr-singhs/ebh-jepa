@@ -1,0 +1,11 @@
+{
+  "id": "sehajrsingh/crafter-300k-atlas",
+  "title": "crafter-300k-atlas",
+  "code_file": "run.ipynb",
+  "language": "python",
+  "enable_internet": false,
+  "kernel_type": "notebook",
+  "dataset_sources": [
+    "sehajrsingh/ebh-jepa-crafter-env"
+  ]
+}

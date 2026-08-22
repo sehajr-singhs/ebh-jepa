@@ -1,0 +1,23 @@
+{
+  "tag": "B/UNCONSTRAINED-MLP seed=1",
+  "finite": true,
+  "max_norm": 5353.72314453125,
+  "align_short": 0.0056936913169920444,
+  "hausdorff": 461.0431213378906,
+  "chamfer": 22.7399959564209,
+  "chamfer_rel": 6.00946772681144,
+  "lam_model": 11.431362980772974,
+  "lam_err": NaN,
+  "contraction": -10.010950143138567,
+  "contraction_err": 4054.8791865756116,
+  "r_mag": null,
+  "pred_speed": 4.725363254547119,
+  "targ_speed": 0.04575910046696663,
+  "true_lambda": NaN,
+  "true_div": -4064.89013671875,
+  "status": "ok",
+  "seed": 1,
+  "steps": 250,
+  "train_horizon": 6,
+  "wall_seconds": 1623.0
+}

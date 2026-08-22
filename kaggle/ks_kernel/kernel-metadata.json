@@ -1,0 +1,11 @@
+{
+  "id": "sehajrsingh/ks-atlas-ebh-jepa",
+  "title": "ks-atlas-ebh-jepa",
+  "code_file": "run.ipynb",
+  "language": "python",
+  "enable_internet": false,
+  "kernel_type": "notebook",
+  "dataset_sources": [
+    "sehajrsingh/ebh-jepa-crafter-env"
+  ]
+}

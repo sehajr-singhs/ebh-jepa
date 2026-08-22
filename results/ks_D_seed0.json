@@ -1,0 +1,20 @@
+{
+  "tag": "D/naive",
+  "finite": true,
+  "max_norm": 7.454394817352295,
+  "align_short": 0.0021116130519658327,
+  "hausdorff": 1.3785299062728882,
+  "chamfer": 0.5846384763717651,
+  "chamfer_rel": 0.4241028573050079,
+  "lam_model": 0.04210013340828785,
+  "lam_err": NaN,
+  "contraction": 0.07529594004154205,
+  "contraction_err": 4064.9654326587915,
+  "r_mag": 0.0,
+  "pred_speed": 0.01769178919494152,
+  "targ_speed": 0.021675923839211464,
+  "true_lambda": NaN,
+  "true_div": -4064.89013671875,
+  "seed": 0,
+  "status": "ok"
+}

@@ -1,0 +1,21 @@
+{
+  "tag": "D/METRIPLECTIC-NAIVE s=1",
+  "finite": true,
+  "max_norm": 9.867652893066406,
+  "align_short": 0.008725660853087902,
+  "hausdorff": 3.4576220512390137,
+  "chamfer": 1.5607037544250488,
+  "chamfer_rel": 0.4461520780715346,
+  "lam_model": 0.04372812111978419,
+  "lam_err": NaN,
+  "contraction": 0.05470644682645798,
+  "contraction_err": 4064.9448431655765,
+  "r_mag": 0.0,
+  "pred_speed": 0.03490779176354408,
+  "targ_speed": 0.040966734290122986,
+  "true_lambda": NaN,
+  "true_div": -4064.89013671875,
+  "status": "ok",
+  "seed": 1,
+  "steps": 100
+}

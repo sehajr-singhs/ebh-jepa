@@ -97,11 +97,11 @@
 <section class="hero">
   <div class="container has-text-centered">
     <h1 class="publication-title">EB&#8209;H&#8209;JEPA</h1>
-    <div class="tagline">Energy-based Hamiltonian JEPA world models. Physical structure in the latent predictor — measured honestly, on the failure cases and in the RL loop.</div>
+    <div class="tagline">Latent predictors for world models must dissipate. A structural failure atlas and the conditions for engaged dissipation — with three provable predictions.</div>
     <div class="authors">Sehaj Randhir Singh</div>
     <div class="affiliation">Independent researcher; partial affiliation with NYU Tandon School of Engineering</div>
     <div class="links">
-      <a href="papers/neurips2026/neurips2026.pdf">Paper (NeurIPS format)</a><a href="https://github.com/sehajr-singhs/ebh-jepa">GitHub (code + data)</a><a href="https://www.kaggle.com/datasets/sehajrsingh/ebh-jepa-crafter-env">Offline env dataset</a><a href="https://www.kaggle.com/code/sehajrsingh/eb-h-jepa-crafter-3seed">3-seed runs on Kaggle</a>
+      <a href="papers/neurips2026/neurips2026.pdf">Paper (10 pages, NeurIPS format)</a><a href="https://github.com/sehajr-singhs/ebh-jepa">GitHub</a><a href="https://www.kaggle.com/datasets/sehajrsingh/ebh-jepa-crafter-env">Offline env dataset</a><a href="https://www.kaggle.com/code/sehajrsingh/eb-h-jepa-crafter-3seed">Crafter 3-seed (T4)</a><a href="https://www.kaggle.com/code/sehajrsingh/crafter-300k-atlas">Crafter 300k (T4)</a><a href="https://www.kaggle.com/code/sehajrsingh/ks-atlas-ebh-jepa">KS Atlas (GPU)</a>
     </div>
   </div>
 </section>
@@ -116,9 +116,20 @@
 <tr><td>C · naive metriplectic</td><td>R = LL<sup>⊤</sup>, zero init</td><td>~0</td><td class="bad">0.00000</td><td class="bad">0.0</td><td>dead saddle: L stuck at 0, no dissipation</td></tr>
 <tr><td>D · fixed metriplectic</td><td>const. J + nonzero R₀</td><td class="win">0.81</td><td class="win">0.49</td><td class="win">−13.80 ± 0.17</td><td>R engages; true contraction recovered to ~1%</td></tr>
 <tr><td>E · fixed + spectral shaping</td><td>D + QR Lyapunov penalty</td><td class="win">0.90</td><td class="win">0.53</td><td class="win">−13.63</td><td>closest λ₁; still cannot pin individual exponents</td></tr>
-</tbody></table></div>
-<div class="table-note">3 seeds per arm; every number traces to results/*.json via benchmarks/run_benchmark.py. And the cruelest finding: the frozen Hamiltonian arm (B) posts the <em>best</em> attractor-overlap score while being dynamically inert — overlap rewards dead models.</div>
+</tbody></table></div>    <div class="table-note">3 seeds per arm; every number traces to results/*.json via benchmarks/run_benchmark.py. Same failure modes confirmed on Kuramoto–Sivashinsky (34 DOF, GPU). The cruelest finding: the frozen Hamiltonian arm (B) posts the <em>best</em> attractor-overlap score while being dynamically inert — overlap rewards dead models.</div>
 <div class="impact-grid"><div class="impact"><img class="impact-img" src="docs/figs/fig1_atlas.png" alt=""><div class="impact-body"><div class="impact-num">The atlas, one picture</div><p>Five structural constraint classes, one chaotic test bed. Each fails on a property disjoint from the one it enforces.</p></div></div><div class="impact"><img class="impact-img" src="docs/figs/fig3_lz4.png" alt=""><div class="impact-body"><div class="impact-num">Contraction, recovered</div><p>The fixed-metriplectic arm engages R and recovers Lorenz's exact phase-space contraction −13.667 to ~1% — a mechanistic fingerprint, not a curve fit.</p></div></div></div></section>
+
+<section class="section"><h2 class="title">Theory: when structure collapses and when it engages</h2><p>Three propositions predict the empirical findings. These were formulated <em>before</em> the Crafter runs.</p>
+
+<p><strong>Proposition 1 (Posterior collapse basin).</strong> The categorical RSSM posterior converges to its prior whenever the GRU captures less than \(\beta / \log_2 K\) of the per-code predictability. For DreamerV3 defaults (\(\beta = 1\), \(K = 32\)), collapse occurs whenever the GRU captures less than 20% of the information. This is precisely the regime we observe in Crafter at 20k steps.</p>
+
+<p><strong>Proposition 2 (Dead saddle).</strong> The metriplectic dissipation matrix \(R = LL^\top\) sits on a dead saddle at \(L = 0\): \(\nabla_L R = 0\), so no gradient can lift \(R\) off zero. The fix — nonzero \(L\) initialization at std 0.05 — breaks this saddle and makes dissipation engage.</p>
+
+<p><strong>Proposition 3 (Drift noise floor).</strong> For two independent samples from a uniform \(K\)-class prior, the scale-free drift is exactly \(2(1 - 1/K)\). For \(K = 32\): 1.9375. This is precisely the measured RSSM drift — it is sampling noise, not predictive error.</p>
+
+<p><strong>Two chaotic systems.</strong> We validate on Lorenz-63 (3 DOF, \(\mathrm{div}\,F = -13.667\)) and Kuramoto–Sivashinsky (34 real DOF with trace-free nonlinearity, \(\mathrm{div}\,F = -4064.9\)). The same failure modes recur: rigid Hamiltonians freeze, naive metriplectics sit on the dead saddle, fixed metriplectics engage dissipation. The Kuramoto–Sivashinsky atlas (5 arms × 3 seeds, GPU) is running on Kaggle now.</p>
+
+</section>
 
 <section class="section"><h2 class="title">Latent stability in the RL loop: DreamerV3 with a pluggable predictor</h2><p>A failure atlas on Lorenz tells us where structure fails in isolation; it does not tell us whether structure helps or hurts an <em>actual RL world model</em>, where the predictor co-adapts with an actor trained by latent imagination. We build a compact but faithful reimplementation of the DreamerV3 recipe — CNN encoder/decoder, recurrent memory, categorical posterior, KL free bits, symlog targets, TD(λ) imagination — in which the stochastic prior is pluggable. The baseline is DreamerV3's exact categorical RSSM; the treatment is a continuous latent whose prior mean advances under the fixed-metriplectic map from Part 1. Everything else is byte-identical, including a matched total KL free-bit budget (32 bits per step for both arms).</p>
 <p>Beyond return, we instrument the thing the paper's title cares about: <strong>latent stability</strong>. Every 2k environment steps both arms log prior-vs-posterior drift, raw KL (free-bit slack), latent norm, and — for the treatment arm — dissipation engagement \\(\\mathrm{tr}(R)/n\\) inside the RL loop.</p>

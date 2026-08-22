@@ -1,0 +1,23 @@
+{
+  "tag": "C/RIGID-HAMILTONIAN seed=0",
+  "finite": true,
+  "max_norm": 9.234953880310059,
+  "align_short": 0.005114475730806589,
+  "hausdorff": 3.1759591102600098,
+  "chamfer": 0.8769767880439758,
+  "chamfer_rel": 0.27612943596590217,
+  "lam_model": 0.008528077001074053,
+  "lam_err": NaN,
+  "contraction": 0.029575475491583347,
+  "contraction_err": 4064.9197121942416,
+  "r_mag": null,
+  "pred_speed": 0.00098399817943573,
+  "targ_speed": 0.04259268939495087,
+  "true_lambda": NaN,
+  "true_div": -4064.89013671875,
+  "status": "ok",
+  "seed": 0,
+  "steps": 250,
+  "train_horizon": 6,
+  "wall_seconds": 36595.0
+}
