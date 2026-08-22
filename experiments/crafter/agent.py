@@ -87,43 +87,48 @@ def symexp(x: torch.Tensor) -> torch.Tensor:
 # ---------------------------------------------------------------------------
 
 class ConvEncoder(nn.Module):
-    def __init__(self, channels=(32, 64, 128, 256), feat_dim=512):
+    def __init__(self, channels=(32, 64, 128, 256), feat_dim=512, in_channels=3, obs_size=64):
         super().__init__()
         layers = []
-        cin = 3
-        size = 64
+        cin = in_channels
+        size = obs_size
         for ch in channels:
             size //= 2
             layers += [nn.Conv2d(cin, ch, 4, stride=2, padding=1),
                        nn.LayerNorm([ch, size, size]), nn.SiLU()]
             cin = ch
         self.cnn = nn.Sequential(*layers)  # 64->32->16->8->4, ends 4x4
-        self.mlp = nn.Sequential(nn.Linear(channels[-1] * 4 * 4, feat_dim),
+        cnn_out_size = obs_size // (2 ** len(channels))
+        self.mlp = nn.Sequential(nn.Linear(channels[-1] * cnn_out_size * cnn_out_size, feat_dim),
                                  nn.LayerNorm(feat_dim), nn.SiLU())
+        self.obs_size = obs_size
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # (B,3,64,64)->(B,feat)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # (B,C,H,W)->(B,feat)
         return self.mlp(self.cnn(x).flatten(1))
 
 
 class ConvDecoder(nn.Module):
-    def __init__(self, channels=(32, 64, 128, 256), in_dim=512):
+    def __init__(self, channels=(32, 64, 128, 256), in_dim=512, out_channels=3, obs_size=64):
         super().__init__()
-        self.mlp = nn.Sequential(nn.Linear(in_dim, channels[-1] * 4 * 4),
+        self.cnn_out_size = obs_size // (2 ** len(channels))
+        self.mlp = nn.Sequential(nn.Linear(in_dim, channels[-1] * self.cnn_out_size * self.cnn_out_size),
                                  nn.SiLU())
         layers = []
         prev = channels[-1]
-        size = 4
+        size = self.cnn_out_size
         for ch in reversed(channels[:-1]):
             size *= 2
             layers += [nn.ConvTranspose2d(prev, ch, 4, stride=2, padding=1),
                        nn.LayerNorm([ch, size, size]), nn.SiLU()]
             prev = ch
-        layers += [nn.ConvTranspose2d(prev, 3, 4, stride=2, padding=1)]
-        self.deconv = nn.Sequential(*layers)  # 4->8->16->32->64
+        layers += [nn.ConvTranspose2d(prev, out_channels, 4, stride=2, padding=1)]
+        self.deconv = nn.Sequential(*layers)
+        self.out_channels = out_channels
 
-    def forward(self, z: torch.Tensor) -> torch.Tensor:  # (B,in)->(B,3,64,64)
-        h = self.mlp(z)  # (B, C*4*4)
-        return self.deconv(h.reshape(-1, self.mlp[0].out_features // 16, 4, 4))
+    def forward(self, z: torch.Tensor) -> torch.Tensor:  # (B,in)->(B,C,H,W)
+        h = self.mlp(z)
+        feat_channels = self.mlp[0].out_features // (self.cnn_out_size * self.cnn_out_size)
+        return self.deconv(h.reshape(-1, feat_channels, self.cnn_out_size, self.cnn_out_size))
 
 
 # ---------------------------------------------------------------------------
@@ -297,8 +302,12 @@ class WorldModel(nn.Module):
         cfg = {**CONFIG, **(config or {})}
         self.cfg = cfg
         self.predictor_type = predictor
-        self.encoder = ConvEncoder(cfg["cnn_channels"], cfg["feat_dim"])
-        self.decoder = ConvDecoder(cfg["cnn_channels"], in_dim=self._zdim())
+        self.encoder = ConvEncoder(cfg["cnn_channels"], cfg["feat_dim"],
+                                   in_channels=cfg.get("in_channels", 3),
+                                   obs_size=cfg.get("obs_size", 64))
+        self.decoder = ConvDecoder(cfg["cnn_channels"], in_dim=self._zdim(),
+                                   out_channels=cfg.get("in_channels", 3),
+                                   obs_size=cfg.get("obs_size", 64))
         self.gru = nn.GRUCell(cfg["gru_dim"], cfg["gru_dim"])
         self.z_in = nn.Linear(cfg["action_dim"] + cfg["z_dim"]
                               if predictor == "metriplectic"
